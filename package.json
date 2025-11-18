@@ -27,6 +27,7 @@
 		"wrangler": "^4.49.0"
 	},
 	"dependencies": {
-		"bcryptjs": "^3.0.3"
+		"bcryptjs": "^3.0.3",
+		"lucide-svelte": "^0.554.0"
 	}
 }
