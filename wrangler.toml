@@ -1,0 +1,14 @@
+name = "satomatashikitask"
+compatibility_date = "2024-11-19"
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+# D1 Database bindings (uncomment when D1 database is created via Cloudflare dashboard)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "satomatashikitask-db"
+# database_id = "your-database-id"
+
+# R2 Storage bindings (uncomment when R2 bucket is created via Cloudflare dashboard)
+# [[r2_buckets]]
+# binding = "BUCKET"
+# bucket_name = "satomatashikitask-files"
