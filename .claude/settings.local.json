@@ -24,7 +24,8 @@
       "Bash(npm run build:*)",
       "Bash(node add-discord-settings.cjs:*)",
       "Bash(sqlite3:*)",
-      "Bash(node check-schema.cjs:*)"
+      "Bash(node check-schema.cjs:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

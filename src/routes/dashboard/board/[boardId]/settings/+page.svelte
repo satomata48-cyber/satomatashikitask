@@ -57,12 +57,6 @@
 		}
 	}
 
-	// Webhook URLのマスク表示
-	const maskedWebhookUrl = $derived(() => {
-		if (!webhookUrl || webhookUrl.length < 50) return webhookUrl;
-		return webhookUrl.substring(0, 40) + '...' + webhookUrl.substring(webhookUrl.length - 10);
-	});
-
 	let saving = $state(false);
 	let testing = $state(false);
 </script>
