@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
-	import { Pencil, Trash2, Plus, Menu, X, Calendar, LayoutGrid, ChevronLeft, ChevronRight, FileText } from 'lucide-svelte';
+	import { Pencil, Trash2, Plus, Menu, X, Calendar, LayoutGrid, ChevronLeft, ChevronRight, FileText, Settings } from 'lucide-svelte';
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -147,6 +147,14 @@
 									<span class="flex-1 truncate">{board.title}</span>
 									{#if data.currentBoardId === board.id}
 										<div class="flex gap-1 ml-2">
+											<a
+												href="/dashboard/board/{board.id}/settings"
+												onclick={(e) => e.stopPropagation()}
+												class="p-0.5 text-blue-600 hover:text-blue-700 hover:bg-blue-200 rounded transition-colors"
+												title="設定"
+											>
+												<Settings size={14} />
+											</a>
 											<button
 												onclick={(e) => {
 													e.preventDefault();
@@ -363,6 +371,16 @@
 
 						<!-- 区切り線 -->
 						<div class="h-8 w-px bg-gray-300"></div>
+
+						<!-- Discord設定ボタン -->
+						<a
+							href="/dashboard/board/{data.currentBoardId}/settings"
+							class="px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200"
+							title="Discord連携設定"
+						>
+							<Settings size={16} />
+							Discord設定
+						</a>
 
 						<!-- ボード/カレンダー切り替え -->
 						<div class="flex gap-2 bg-gray-100 rounded-lg p-1">
@@ -606,7 +624,7 @@
 							</div>
 
 							{#if showAddCardForList === list.id}
-								<form method="POST" action="?/createCard" class="mb-2">
+								<form method="POST" action="?/createCard&board={data.currentBoardId}" class="mb-2">
 									<input type="hidden" name="list_id" value={list.id} />
 									<input
 										type="text"

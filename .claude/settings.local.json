@@ -13,7 +13,18 @@
       "Bash(git push:*)",
       "Bash(npm run dev:wrangler:*)",
       "Bash(npm run dev:*)",
-      "Bash(npm run preview:wrangler:*)"
+      "Bash(npm run preview:wrangler:*)",
+      "Bash(timeout /t 60 /nobreak)",
+      "Bash(nul)",
+      "Bash(powershell Start-Sleep -Seconds 60)",
+      "Bash(node add-email-column.js:*)",
+      "Bash(move add-email-column.js add-email-column.cjs)",
+      "Bash(node add-email-column.cjs:*)",
+      "Bash(npm run prepare:*)",
+      "Bash(npm run build:*)",
+      "Bash(node add-discord-settings.cjs:*)",
+      "Bash(sqlite3:*)",
+      "Bash(node check-schema.cjs:*)"
     ],
     "deny": [],
     "ask": []
