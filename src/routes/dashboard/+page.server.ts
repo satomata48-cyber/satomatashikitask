@@ -28,6 +28,7 @@ interface Card {
 	title_bg_color: string | null;
 	description_bg_color: string | null;
 	border_color: string | null;
+	discord_notify: number;
 	has_document?: boolean;
 }
 
@@ -105,6 +106,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, cookies }) =
 							c.id, c.list_id, c.title, c.description, c.due_date, c.position,
 							c.title_color, c.description_color, c.due_date_color,
 							c.title_bg_color, c.description_bg_color, c.border_color,
+							c.discord_notify,
 							CASE WHEN EXISTS (SELECT 1 FROM documents d WHERE d.card_id = c.id) THEN 1 ELSE 0 END as has_document
 						FROM cards c
 						WHERE c.list_id IN (${listIds})
@@ -434,6 +436,7 @@ export const actions: Actions = {
 		const title_bg_color = data.get('title_bg_color')?.toString() || null;
 		const description_bg_color = data.get('description_bg_color')?.toString() || null;
 		const border_color = data.get('border_color')?.toString() || null;
+		const discord_notify = data.get('discord_notify') === '1' ? 1 : 0;
 
 		if (!id || !title) {
 			return fail(400, { error: 'カードIDと名前が必要です' });
@@ -452,9 +455,9 @@ export const actions: Actions = {
 			}
 
 			await db.prepare(
-				'UPDATE cards SET title = ?, description = ?, due_date = ?, title_color = ?, description_color = ?, due_date_color = ?, title_bg_color = ?, description_bg_color = ?, border_color = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+				'UPDATE cards SET title = ?, description = ?, due_date = ?, title_color = ?, description_color = ?, due_date_color = ?, title_bg_color = ?, description_bg_color = ?, border_color = ?, discord_notify = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
 			)
-				.bind(title, description, due_date, title_color, description_color, due_date_color, title_bg_color, description_bg_color, border_color, parseInt(id))
+				.bind(title, description, due_date, title_color, description_color, due_date_color, title_bg_color, description_bg_color, border_color, discord_notify, parseInt(id))
 				.run();
 
 			return { success: true };

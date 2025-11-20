@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
-	import { Pencil, Trash2, Plus, Menu, X, Calendar, LayoutGrid, ChevronLeft, ChevronRight, FileText, Settings } from 'lucide-svelte';
+	import { Pencil, Trash2, Plus, Menu, X, Calendar, LayoutGrid, ChevronLeft, ChevronRight, FileText, Settings, MessageCircle } from 'lucide-svelte';
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -34,6 +34,9 @@
 
 	// カラーパレットの表示状態
 	let showColorPalette = $state(false);
+
+	// Discord通知設定
+	let editDiscordNotify = $state(false);
 
 	// ビュータイプ (board or calendar)
 	let viewType = $state<'board' | 'calendar'>('board');
@@ -497,6 +500,26 @@
 													/>
 												</div>
 
+												<!-- Discord通知設定 -->
+												<div class="mb-3">
+													<label class="flex items-center gap-2 cursor-pointer">
+														<input
+															type="checkbox"
+															name="discord_notify"
+															bind:checked={editDiscordNotify}
+															value="1"
+															class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
+														/>
+														<span class="text-xs text-gray-700 flex items-center gap-1">
+															<MessageCircle size={14} class="text-purple-600" />
+															Discordで通知
+														</span>
+													</label>
+													<p class="text-xs text-gray-500 ml-6 mt-1">
+														ボードのDiscord設定が有効な場合、期限が近づくとこのカードを通知します
+													</p>
+												</div>
+
 												<!-- カラー編集トグルボタン -->
 												<button
 													type="button"
@@ -568,6 +591,7 @@
 															editColors.title_bg_color = card.title_bg_color;
 															editColors.description_bg_color = card.description_bg_color;
 															editColors.border_color = card.border_color;
+															editDiscordNotify = card.discord_notify === 1;
 														}}
 														class="p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors flex items-center justify-center"
 														title="カードを編集"
@@ -604,18 +628,23 @@
 												{@const now = new Date()}
 												{@const isOverdue = dueDate < now}
 												{@const isDueSoon = dueDate > now && dueDate < new Date(now.getTime() + 24 * 60 * 60 * 1000)}
-												<div
-													class="inline-block px-2 py-1 rounded text-xs font-medium mt-2"
-													style="background-color: {card.due_date_color || (isOverdue ? '#fee2e2' : isDueSoon ? '#fef3c7' : '#dbeafe')};
-													       color: {card.due_date_color ? '#000000' : (isOverdue ? '#b91c1c' : isDueSoon ? '#a16207' : '#1e40af')}"
-												>
-													期限: {dueDate.toLocaleString('ja-JP', {
-														year: 'numeric',
-														month: '2-digit',
-														day: '2-digit',
-														hour: '2-digit',
-														minute: '2-digit'
-													})}
+												<div class="flex items-center gap-1 mt-2">
+													<div
+														class="inline-block px-2 py-1 rounded text-xs font-medium"
+														style="background-color: {card.due_date_color || (isOverdue ? '#fee2e2' : isDueSoon ? '#fef3c7' : '#dbeafe')};
+														       color: {card.due_date_color ? '#000000' : (isOverdue ? '#b91c1c' : isDueSoon ? '#a16207' : '#1e40af')}"
+													>
+														期限: {dueDate.toLocaleString('ja-JP', {
+															year: 'numeric',
+															month: '2-digit',
+															day: '2-digit',
+															hour: '2-digit',
+															minute: '2-digit'
+														})}
+													</div>
+													{#if card.discord_notify === 1}
+														<MessageCircle size={14} class="text-purple-600" title="Discord通知ON" />
+													{/if}
 												</div>
 											{/if}
 										</div>
