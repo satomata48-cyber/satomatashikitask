@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
-	import { Pencil, Trash2, Plus, Menu, X, Calendar, LayoutGrid, ChevronLeft, ChevronRight, FileText, Settings, MessageCircle } from 'lucide-svelte';
+	import { Pencil, Trash2, Plus, Menu, X, Calendar, LayoutGrid, ChevronLeft, ChevronRight, FileText, Settings, Gamepad2 } from 'lucide-svelte';
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -511,7 +511,7 @@
 															class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
 														/>
 														<span class="text-xs text-gray-700 flex items-center gap-1">
-															<MessageCircle size={14} class="text-purple-600" />
+															<Gamepad2 size={16} class="text-purple-600" />
 															Discordで通知
 														</span>
 													</label>
@@ -643,7 +643,7 @@
 														})}
 													</div>
 													{#if card.discord_notify === 1}
-														<MessageCircle size={14} class="text-purple-600" title="Discord通知ON" />
+														<Gamepad2 size={16} class="text-purple-600" title="Discord通知ON" />
 													{/if}
 												</div>
 											{/if}
