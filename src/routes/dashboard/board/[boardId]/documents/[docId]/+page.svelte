@@ -20,6 +20,7 @@
 	let showEmojiPicker = $state(false);
 	let showFontSizePicker = $state(false);
 	let showH1TemplatePicker = $state(false);
+	let mobileSidebarOpen = $state(false);
 
 	const selectedDoc = $derived(
 		data.documents.find(d => d.id === selectedDocId)
@@ -408,25 +409,33 @@
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
 	<!-- Header -->
 	<header class="bg-white shadow-sm border-b border-blue-200 sticky top-0 z-10">
-		<div class="px-6 py-4">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-4">
+		<div class="px-3 py-3 md:px-6 md:py-4">
+			<div class="flex items-center justify-between gap-2">
+				<div class="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
 					<a
 						href="/dashboard?board={data.board.id}"
-						class="p-2 text-gray-600 hover:bg-blue-50 rounded-lg transition-colors"
+						class="p-2 text-gray-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
 						title="ダッシュボードに戻る"
 					>
 						<ArrowLeft size={20} />
 					</a>
-					<div>
-						<h1 class="text-2xl font-bold text-gray-800">{data.board.title} - ドキュメント</h1>
-						<p class="text-sm text-gray-500">ボードのドキュメント</p>
+					<!-- モバイル用サイドバートグル -->
+					<button
+						onclick={() => mobileSidebarOpen = !mobileSidebarOpen}
+						class="p-2 text-gray-600 hover:bg-blue-50 rounded-lg transition-colors md:hidden flex-shrink-0"
+						title="ドキュメント一覧"
+					>
+						<FileText size={20} />
+					</button>
+					<div class="min-w-0">
+						<h1 class="text-base md:text-2xl font-bold text-gray-800 truncate">{data.board.title}</h1>
+						<p class="text-xs md:text-sm text-gray-500 hidden md:block">ボードのドキュメント</p>
 					</div>
 				</div>
 
-				<div class="flex items-center gap-4">
+				<div class="flex items-center gap-2 md:gap-4 flex-shrink-0">
 					{#if lastSaved}
-						<div class="flex items-center gap-2 text-sm text-gray-500">
+						<div class="hidden md:flex items-center gap-2 text-sm text-gray-500">
 							<Clock size={14} />
 							<span>最終保存: {lastSaved}</span>
 						</div>
@@ -454,10 +463,11 @@
 							<button
 								type="submit"
 								disabled={saving}
-								class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 text-base"
+								class="px-3 py-2 md:px-6 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 md:gap-2 shadow-sm disabled:opacity-50 text-sm md:text-base"
 							>
-								<Save size={18} />
-								{saving ? '保存中...' : '保存'}
+								<Save size={16} class="md:hidden" />
+								<Save size={18} class="hidden md:block" />
+								<span class="hidden md:inline">{saving ? '保存中...' : '保存'}</span>
 							</button>
 						</form>
 
@@ -465,10 +475,11 @@
 							<button
 								type="button"
 								onclick={confirmDelete}
-								class="px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-2 border border-red-200"
+								class="p-2 md:px-4 md:py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-2 border border-red-200"
 								title="削除"
 							>
-								<Trash2 size={18} />
+								<Trash2 size={16} class="md:hidden" />
+								<Trash2 size={18} class="hidden md:block" />
 							</button>
 
 							<form id="delete-form" method="POST" action="?/delete" use:enhance={async () => {
@@ -510,10 +521,11 @@
 							<button
 								type="submit"
 								disabled={saving}
-								class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 text-base"
+								class="px-3 py-2 md:px-6 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 md:gap-2 shadow-sm disabled:opacity-50 text-sm md:text-base"
 							>
-								<Save size={18} />
-								{saving ? '作成中...' : '作成'}
+								<Save size={16} class="md:hidden" />
+								<Save size={18} class="hidden md:block" />
+								<span class="hidden md:inline">{saving ? '作成中...' : '作成'}</span>
 							</button>
 						</form>
 					{/if}
@@ -523,10 +535,27 @@
 	</header>
 
 	<!-- Main Content -->
-	<div class="flex flex-1 overflow-hidden">
+	<div class="flex flex-1 overflow-hidden relative">
+		<!-- Mobile Sidebar Overlay -->
+		{#if mobileSidebarOpen}
+			<div
+				class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+				onclick={() => mobileSidebarOpen = false}
+			></div>
+		{/if}
+
 		<!-- Sidebar - Document List -->
-		<aside class="w-80 bg-white border-r border-blue-200 flex flex-col">
-			<div class="flex-1 overflow-y-auto p-4">
+		<aside class="fixed md:relative z-50 md:z-auto w-72 md:w-80 bg-white border-r border-blue-200 flex flex-col h-full transition-transform duration-300 {mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}">
+			<div class="flex items-center justify-between p-3 border-b border-blue-200 md:hidden">
+				<span class="font-semibold text-gray-800">ドキュメント一覧</span>
+				<button
+					onclick={() => mobileSidebarOpen = false}
+					class="p-1 text-gray-600 hover:bg-gray-100 rounded"
+				>
+					✕
+				</button>
+			</div>
+			<div class="flex-1 overflow-y-auto p-3 md:p-4">
 				{#if data.documents.length === 0}
 					<div class="text-center py-12 px-4">
 						<FileText size={48} class="mx-auto text-gray-300 mb-3" />
@@ -541,19 +570,20 @@
 		<!-- Editor Area -->
 		<main class="flex-1 overflow-y-auto bg-white">
 			{#if !isCreatingNew && !selectedDoc}
-				<div class="h-full flex items-center justify-center">
+				<div class="h-full flex items-center justify-center p-4">
 					<div class="text-center">
-						<FileText size={64} class="mx-auto text-gray-300 mb-4" />
-						<h2 class="text-xl font-semibold text-gray-600 mb-2">ドキュメントを選択してください</h2>
-						<p class="text-gray-500 mb-6">左側のリストからドキュメントを選択するか、新規作成してください</p>
+						<FileText size={48} class="mx-auto text-gray-300 mb-4 md:hidden" />
+						<FileText size={64} class="mx-auto text-gray-300 mb-4 hidden md:block" />
+						<h2 class="text-lg md:text-xl font-semibold text-gray-600 mb-2">ドキュメントを選択</h2>
+						<p class="text-sm md:text-base text-gray-500 mb-6">ドキュメントアイコンをタップして一覧を開いてください</p>
 					</div>
 				</div>
 			{:else}
-				<div class="max-w-4xl mx-auto px-20 py-16">
+				<div class="max-w-4xl mx-auto px-4 py-6 md:px-20 md:py-16">
 					<!-- Save Button - Floating Top Right -->
 					{#if !isCreatingNew && selectedDoc}
-						<div class="mb-12 flex items-center justify-between">
-							<div class="flex items-center gap-3 text-xs text-gray-400">
+						<div class="mb-6 md:mb-12 flex items-center justify-between">
+							<div class="flex items-center gap-2 md:gap-3 text-xs text-gray-400">
 								<span>更新: {formatDate(selectedDoc.updated_at)}</span>
 								{#if lastSaved}
 									<span>•</span>
@@ -604,19 +634,19 @@
 					{/if}
 
 					<!-- Title Input -->
-					<div class="mb-8">
+					<div class="mb-4 md:mb-8">
 						<input
 							type="text"
 							bind:value={title}
 							placeholder="無題"
-							class="w-full text-5xl font-bold text-gray-900 border-none outline-none bg-transparent focus:ring-0 placeholder-gray-300 px-0 py-2"
+							class="w-full text-2xl md:text-5xl font-bold text-gray-900 border-none outline-none bg-transparent focus:ring-0 placeholder-gray-300 px-0 py-1 md:py-2"
 							style="font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;"
 						/>
 					</div>
 
 					<!-- Formatting Toolbar -->
-					<div class="bg-blue-50/50 rounded-lg border border-blue-100 p-2 mb-4 sticky top-[73px] z-10 backdrop-blur-sm">
-						<div class="flex flex-wrap gap-1 items-center">
+					<div class="bg-blue-50/50 rounded-lg border border-blue-100 p-1.5 md:p-2 mb-4 sticky top-[57px] md:top-[73px] z-10 backdrop-blur-sm overflow-x-auto">
+						<div class="flex gap-0.5 md:gap-1 items-center min-w-max">
 							<button
 								type="button"
 								onclick={() => execCommand('bold')}
@@ -844,7 +874,7 @@
 					</div>
 
 					<!-- Editor Content -->
-					<div class="mb-24">
+					<div class="mb-12 md:mb-24">
 						<div
 							bind:this={editorRef}
 							contenteditable="true"
@@ -852,7 +882,7 @@
 								console.log('Editor input event fired');
 								console.log('Current editor content:', editorRef?.innerHTML);
 							}}
-							class="min-h-[700px] text-base leading-relaxed focus:outline-none text-gray-700"
+							class="min-h-[400px] md:min-h-[700px] text-sm md:text-base leading-relaxed focus:outline-none text-gray-700"
 							style="font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif; line-height: 1.8;"
 						>
 						</div>

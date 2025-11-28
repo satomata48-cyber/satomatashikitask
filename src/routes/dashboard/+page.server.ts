@@ -177,7 +177,7 @@ export const actions: Actions = {
 		}
 	},
 
-	createList: async ({ request, locals, platform, url }) => {
+	createList: async ({ request, locals, platform }) => {
 		if (!locals.userId) {
 			return fail(401, { error: '認証が必要です' });
 		}
@@ -185,7 +185,7 @@ export const actions: Actions = {
 		const db = getDB(platform);
 		const data = await request.formData();
 		const title = data.get('title')?.toString();
-		const boardId = url.searchParams.get('board');
+		const boardId = data.get('board_id')?.toString();
 
 		if (!title || !boardId) {
 			return fail(400, { error: 'リスト名とボードIDが必要です' });
