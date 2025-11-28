@@ -69,9 +69,9 @@
 	<div class="max-w-4xl mx-auto py-8 px-4">
 		<!-- ヘッダー -->
 		<div class="mb-6">
-			<a href="/dashboard" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
+			<a href="/dashboard/board/{data.board.id}" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
 				<ArrowLeft class="w-4 h-4 mr-1" />
-				ダッシュボードに戻る
+				ボードに戻る
 			</a>
 			<h1 class="text-3xl font-bold text-gray-800">Discord連携設定</h1>
 			<p class="text-gray-600 mt-2">ボード: {data.board.title}</p>

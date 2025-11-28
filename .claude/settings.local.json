@@ -26,7 +26,9 @@
       "Bash(sqlite3:*)",
       "Bash(node check-schema.cjs:*)",
       "Bash(curl:*)",
-      "Bash(node add-discord-notify.cjs:*)"
+      "Bash(node add-discord-notify.cjs:*)",
+      "Bash(npm run deploy:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

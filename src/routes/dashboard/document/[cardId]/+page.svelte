@@ -27,9 +27,9 @@
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-4">
 					<a
-						href="/dashboard?board={data.boardId}"
+						href="/dashboard/board/{data.boardId}"
 						class="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-						title="ダッシュボードに戻る"
+						title="ボードに戻る"
 					>
 						<ArrowLeft size={20} />
 					</a>

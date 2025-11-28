@@ -413,9 +413,9 @@
 			<div class="flex items-center justify-between gap-2">
 				<div class="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
 					<a
-						href="/dashboard?board={data.board.id}"
+						href="/dashboard/board/{data.board.id}"
 						class="p-2 text-gray-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
-						title="ダッシュボードに戻る"
+						title="ボードに戻る"
 					>
 						<ArrowLeft size={20} />
 					</a>
