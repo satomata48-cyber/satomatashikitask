@@ -1,0 +1,1052 @@
+<script lang="ts">
+	import type { PageData, ActionData } from './$types';
+	import {
+		ArrowLeft,
+		Plus,
+		Trash2,
+		Target,
+		LogOut,
+		Settings,
+		LayoutGrid,
+		FileText,
+		Calendar,
+		X,
+		ExternalLink,
+		BarChart3,
+		Edit2,
+		RefreshCw,
+		History,
+		Check,
+		ChevronDown,
+		ChevronUp,
+		Gamepad2,
+		Youtube,
+		Users,
+		Eye,
+		Video,
+		ThumbsUp,
+		MessageSquare,
+		TrendingUp,
+		PlayCircle,
+		FolderOpen,
+		Pencil,
+		Instagram,
+		Facebook
+	} from 'lucide-svelte';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	function handleFormSubmit() {
+		return async ({ result }: { result: { type: string } }) => {
+			if (result.type === 'success' || result.type === 'redirect') {
+				editProjectModal = false;
+				showAddKpi = false;
+				showAddRecord = null;
+				editingGoal = null;
+				showAddDocument = false;
+				showAddBoard = false;
+				showAddListForBoard = null;
+				showAddCardForList = null;
+				editingCard = null;
+				await invalidateAll();
+			}
+		};
+	}
+
+	let editProjectModal = $state(false);
+	let showAddKpi = $state(false);
+	let showAddRecord = $state<number | null>(null);
+	let showAddDocument = $state(false);
+	let showAddBoard = $state(false);
+	let editingGoal = $state<number | null>(null);
+	let expandedHistory = $state<number | null>(null);
+	let selectedTagIds = $state<number[]>(data.projectTags.map(t => t.id));
+	let expandedDocument = $state<number | null>(null);
+	let activeTab = $state<'boards' | 'documents'>('boards');
+	let expandedBoard = $state<number | null>(null);
+	let showAddListForBoard = $state<number | null>(null);
+	let showAddCardForList = $state<number | null>(null);
+	let editingCard = $state<{id: number, title: string, description: string, due_date: string} | null>(null);
+
+	const projectColors = [
+		'#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+		'#8B5CF6', '#EC4899', '#06B6D4', '#F97316'
+	];
+	let editColor = $state(data.project.color);
+
+	// KPIカテゴリ定義
+	const kpiCategories = [
+		{ id: 'sns', name: 'SNS投稿', unit: '件', color: '#EC4899' },
+		{ id: 'sales', name: 'コース販売', unit: '円', color: '#10B981' },
+		{ id: 'blog', name: 'ブログ/PV', unit: 'PV', color: '#3B82F6' },
+		{ id: 'marketing', name: 'マーケティング', unit: '件', color: '#F59E0B' },
+		{ id: 'other', name: 'その他', unit: '件', color: '#6B7280' }
+	];
+
+	// 繰り返し周期オプション
+	const repeatCycles = [
+		{ id: 'weekly', name: '毎週', shortName: '週' },
+		{ id: 'monthly', name: '毎月', shortName: '月' },
+		{ id: 'quarterly', name: '3ヶ月', shortName: '3ヶ月' },
+		{ id: 'half_yearly', name: '6ヶ月', shortName: '6ヶ月' },
+		{ id: 'yearly', name: '毎年', shortName: '年' }
+	];
+
+	function getCategoryInfo(categoryId: string) {
+		return kpiCategories.find(c => c.id === categoryId) || kpiCategories[4];
+	}
+
+	function getRepeatCycleName(cycleId: string): string {
+		const cycle = repeatCycles.find(c => c.id === cycleId);
+		return cycle?.shortName || '';
+	}
+
+	function getProgressPercent(current: number, target: number): number {
+		if (target === 0) return 0;
+		return Math.min(Math.round((current / target) * 100), 100);
+	}
+
+	function toggleTag(tagId: number) {
+		if (selectedTagIds.includes(tagId)) {
+			selectedTagIds = selectedTagIds.filter(id => id !== tagId);
+		} else {
+			selectedTagIds = [...selectedTagIds, tagId];
+		}
+	}
+
+	function formatPeriod(start: string | null, end: string | null): string {
+		if (!start || !end) return '';
+		const startDate = new Date(start);
+		const endDate = new Date(end);
+		return `${startDate.getMonth() + 1}/${startDate.getDate()} - ${endDate.getMonth() + 1}/${endDate.getDate()}`;
+	}
+
+	$effect(() => {
+		selectedTagIds = data.projectTags.map(t => t.id);
+		editColor = data.project.color;
+	});
+</script>
+
+<svelte:head>
+	<title>{data.project.title} - プロジェクト管理</title>
+</svelte:head>
+
+<div class="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
+	<!-- Header -->
+	<header class="bg-white shadow-sm">
+		<div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+			<div class="flex items-center gap-3">
+				<a href="/dashboard" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="ダッシュボードへ戻る">
+					<ArrowLeft size={20} class="text-gray-600" />
+				</a>
+				<div class="w-3 h-3 rounded-full" style="background-color: {data.project.color}"></div>
+				<h1 class="text-xl md:text-2xl font-bold text-gray-800">{data.project.title}</h1>
+				<span class="px-2 py-0.5 text-xs rounded-full {data.project.status === 'active' ? 'bg-green-100 text-green-700' : data.project.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">
+					{data.project.status === 'active' ? '進行中' : data.project.status === 'completed' ? '完了' : '保留'}
+				</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<button onclick={() => { editColor = data.project.color; selectedTagIds = data.projectTags.map(t => t.id); editProjectModal = true; }} class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="プロジェクト設定">
+					<Settings size={18} />
+					<span class="hidden md:inline">設定</span>
+				</button>
+				<form method="POST" action="/dashboard?/logout" use:enhance>
+					<button type="submit" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+						<LogOut size={18} />
+						<span class="hidden md:inline">ログアウト</span>
+					</button>
+				</form>
+			</div>
+		</div>
+	</header>
+
+	<!-- Main Content -->
+	<main class="max-w-7xl mx-auto px-4 py-8">
+		<!-- プロジェクト概要 -->
+		{#if data.project.description || data.projectTags.length > 0}
+			<div class="bg-white rounded-xl shadow-md p-6 mb-6">
+				{#if data.project.description}
+					<p class="text-gray-600 mb-4">{data.project.description}</p>
+				{/if}
+				{#if data.projectTags.length > 0}
+					<div class="flex flex-wrap gap-2">
+						{#each data.projectTags as tag}
+							<span class="px-3 py-1 text-sm rounded-full text-white" style="background-color: {tag.color}">{tag.name}</span>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- KPI目標管理セクション -->
+		<div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+			<div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50">
+				<div class="flex items-center gap-2">
+					<Target size={20} class="text-indigo-600" />
+					<h2 class="font-semibold text-gray-800">KPI目標管理</h2>
+				</div>
+				<button onclick={() => showAddKpi = !showAddKpi} class="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+					<Plus size={16} />
+					追加
+				</button>
+			</div>
+
+			<div class="p-4">
+				<!-- シンプルな目標追加フォーム -->
+				{#if showAddKpi}
+					<form method="POST" action="?/createKpiGoal" use:enhance={handleFormSubmit} class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+						<div class="flex flex-wrap gap-3 items-end">
+							<div class="flex-1 min-w-[120px]">
+								<span class="block text-xs text-gray-500 mb-1">カテゴリ</span>
+								<select name="category" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+									{#each kpiCategories as cat}
+										<option value={cat.id}>{cat.name}</option>
+									{/each}
+								</select>
+							</div>
+							<div class="flex-[2] min-w-[150px]">
+								<span class="block text-xs text-gray-500 mb-1">目標名</span>
+								<input type="text" name="title" placeholder="例: 週間投稿数" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+							</div>
+							<div class="w-24">
+								<span class="block text-xs text-gray-500 mb-1">目標値</span>
+								<input type="number" name="target_value" placeholder="10" required step="0.01" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+							</div>
+							<div class="w-16">
+								<span class="block text-xs text-gray-500 mb-1">単位</span>
+								<input type="text" name="unit" placeholder="件" value="件" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+							</div>
+							<div class="w-24">
+								<span class="block text-xs text-gray-500 mb-1">周期</span>
+								<select name="repeat_cycle" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+									<option value="weekly">毎週</option>
+									<option value="monthly">毎月</option>
+									<option value="quarterly">3ヶ月</option>
+									<option value="half_yearly">6ヶ月</option>
+									<option value="yearly">毎年</option>
+								</select>
+							</div>
+							<div class="w-36">
+								<span class="block text-xs text-gray-500 mb-1">開始日</span>
+								<input type="date" name="start_date" value={new Date().toISOString().split('T')[0]} class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+							</div>
+							<button type="submit" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">追加</button>
+							<button type="button" onclick={() => showAddKpi = false} class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-200 rounded-lg">
+								<X size={18} />
+							</button>
+						</div>
+					</form>
+				{/if}
+
+				<!-- KPI目標一覧 -->
+				{#if data.kpiGoals.length === 0}
+					<div class="text-center py-8">
+						<BarChart3 size={48} class="mx-auto text-gray-300 mb-3" />
+						<p class="text-gray-500">KPI目標を追加して進捗を管理しましょう</p>
+						<p class="text-gray-400 text-sm mt-1">SNS投稿数、売上、PVなどを数値で管理できます</p>
+					</div>
+				{:else}
+					<div class="space-y-3">
+						{#each data.kpiGoals as goal}
+							{@const category = getCategoryInfo(goal.category)}
+							{@const progress = getProgressPercent(goal.current_value, goal.target_value)}
+							<div class="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+								<!-- ヘッダー行 -->
+								<div class="flex items-center gap-3 mb-3">
+									<div class="w-2 h-8 rounded-full" style="background-color: {category.color}"></div>
+									<div class="flex-1 min-w-0">
+										{#if editingGoal === goal.id}
+											<!-- 編集モード -->
+											<form method="POST" action="?/updateKpiGoal" use:enhance={handleFormSubmit} class="flex flex-wrap gap-2 items-center">
+												<input type="hidden" name="id" value={goal.id} />
+												<input type="text" name="title" value={goal.title} class="flex-1 min-w-[150px] px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500" />
+												<input type="number" name="target_value" value={goal.target_value} step="0.01" class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500" />
+												<input type="text" name="unit" value={goal.unit} class="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500" />
+												<select name="repeat_cycle" value={goal.repeat_cycle || 'weekly'} class="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500">
+													{#each repeatCycles as cycle}
+														<option value={cycle.id} selected={goal.repeat_cycle === cycle.id}>{cycle.name}</option>
+													{/each}
+												</select>
+												<button type="submit" class="p-1.5 bg-green-500 text-white rounded hover:bg-green-600"><Check size={14} /></button>
+												<button type="button" onclick={() => editingGoal = null} class="p-1.5 text-gray-500 hover:bg-gray-200 rounded"><X size={14} /></button>
+											</form>
+										{:else}
+											<!-- 表示モード -->
+											<div class="flex items-center gap-2 flex-wrap">
+												<span class="text-xs px-2 py-0.5 rounded text-white" style="background-color: {category.color}">{category.name}</span>
+												<span class="font-medium text-gray-800">{goal.title}</span>
+												{#if goal.repeat_cycle && goal.repeat_cycle !== 'none'}
+													<span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full flex items-center gap-1">
+														<RefreshCw size={10} />
+														{getRepeatCycleName(goal.repeat_cycle)}
+													</span>
+												{/if}
+												{#if goal.current_period_start && goal.current_period_end}
+													<span class="text-xs text-gray-400 flex items-center gap-1">
+														<Calendar size={12} />
+														{formatPeriod(goal.current_period_start, goal.current_period_end)}
+													</span>
+												{/if}
+											</div>
+										{/if}
+									</div>
+									{#if editingGoal !== goal.id}
+										<div class="flex items-center gap-1">
+											<button onclick={() => editingGoal = goal.id} class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="編集">
+												<Edit2 size={14} />
+											</button>
+											<form method="POST" action="?/deleteKpiGoal" use:enhance={handleFormSubmit}>
+												<input type="hidden" name="id" value={goal.id} />
+												<button type="submit" onclick={(e) => { if (!confirm('この目標を削除しますか？')) e.preventDefault(); }} class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded" title="削除">
+													<Trash2 size={14} />
+												</button>
+											</form>
+										</div>
+									{/if}
+								</div>
+
+								<!-- 進捗表示 -->
+								<div class="mb-3">
+									<div class="flex items-center justify-between text-sm mb-1">
+										<span class="text-gray-600">進捗: <span class="font-bold" style="color: {category.color}">{progress}%</span></span>
+										<span class="font-medium" style="color: {category.color}">
+											{goal.current_value.toLocaleString()} / {goal.target_value.toLocaleString()} {goal.unit}
+										</span>
+									</div>
+									<div class="w-full bg-gray-200 rounded-full h-2.5">
+										<div class="h-2.5 rounded-full transition-all duration-500" style="width: {progress}%; background-color: {category.color}"></div>
+									</div>
+								</div>
+
+								<!-- アクションボタン -->
+								<div class="flex flex-wrap items-center gap-2">
+									{#if showAddRecord === goal.id}
+										<form method="POST" action="?/addKpiRecord" use:enhance={handleFormSubmit} class="flex items-center gap-2 flex-1 p-2 bg-gray-50 rounded-lg">
+											<input type="hidden" name="goal_id" value={goal.id} />
+											<input type="number" name="value" placeholder="数値" required step="0.01" class="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500" />
+											<span class="text-sm text-gray-500">{goal.unit}</span>
+											<input type="date" name="recorded_date" value={new Date().toISOString().split('T')[0]} class="px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500" />
+											<button type="submit" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">記録</button>
+											<button type="button" onclick={() => showAddRecord = null} class="p-1.5 text-gray-500 hover:bg-gray-200 rounded">
+												<X size={14} />
+											</button>
+										</form>
+									{:else}
+										<button onclick={() => showAddRecord = goal.id} class="text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
+											<Plus size={14} />
+											実績を記録
+										</button>
+									{/if}
+
+									{#if goal.history && goal.history.length > 0}
+										<button onclick={() => expandedHistory = expandedHistory === goal.id ? null : goal.id} class="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-lg flex items-center gap-1">
+											<History size={14} />
+											過去の記録
+											{#if expandedHistory === goal.id}
+												<ChevronUp size={14} />
+											{:else}
+												<ChevronDown size={14} />
+											{/if}
+										</button>
+									{/if}
+								</div>
+
+								<!-- 直近の実績 -->
+								{#if goal.records && goal.records.length > 0}
+									<div class="mt-3 flex flex-wrap gap-2">
+										{#each goal.records.slice(0, 5) as record}
+											<span class="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+												{new Date(record.recorded_date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}: +{record.value}{goal.unit}
+											</span>
+										{/each}
+									</div>
+								{/if}
+
+								<!-- 過去の期間履歴 -->
+								{#if expandedHistory === goal.id && goal.history && goal.history.length > 0}
+									<div class="mt-4 p-3 bg-gray-50 rounded-lg">
+										<h4 class="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+											<History size={14} />
+											過去の達成記録
+										</h4>
+										<div class="space-y-2">
+											{#each goal.history as h}
+												<div class="flex items-center justify-between text-sm p-2 bg-white rounded border border-gray-100">
+													<span class="text-gray-600">{formatPeriod(h.period_start, h.period_end)}</span>
+													<div class="flex items-center gap-3">
+														<span class="text-gray-700">{h.achieved_value} / {h.target_value} {goal.unit}</span>
+														<span class="font-medium {h.achievement_rate >= 100 ? 'text-green-600' : h.achievement_rate >= 70 ? 'text-yellow-600' : 'text-red-500'}">
+															{Math.round(h.achievement_rate)}%
+														</span>
+													</div>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		</div>
+
+		<!-- YouTube統計セクション -->
+		{#if data.youtubeData.channels.length > 0}
+			<div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+				<div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-red-50 to-pink-50">
+					<div class="flex items-center gap-2">
+						<Youtube size={20} class="text-red-600" />
+						<h2 class="font-semibold text-gray-800">YouTube統計</h2>
+					</div>
+					<a href="/dashboard/projects/{data.project.id}/youtube" class="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
+						<TrendingUp size={16} />
+						詳細分析
+					</a>
+				</div>
+
+				<div class="p-4">
+					{#each data.youtubeData.channels as channel}
+						<a href="/dashboard/projects/{data.project.id}/youtube" class="block hover:bg-gray-50 rounded-xl transition-colors p-4 border border-gray-100 mb-4 last:mb-0">
+							<!-- チャンネル情報ヘッダー -->
+							<div class="flex items-center gap-4 mb-4">
+								{#if channel.thumbnail_url}
+									<img src={channel.thumbnail_url} alt={channel.channel_name} class="w-16 h-16 rounded-full object-cover border-2 border-red-100" />
+								{:else}
+									<div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+										<Youtube size={28} class="text-red-600" />
+									</div>
+								{/if}
+								<div class="flex-1">
+									<h3 class="font-bold text-lg text-gray-800">{channel.channel_name}</h3>
+									{#if channel.channel_handle}
+										<p class="text-sm text-gray-500">{channel.channel_handle}</p>
+									{/if}
+									{#if channel.stats}
+										<p class="text-xs text-gray-400 mt-1">
+											最終更新: {new Date(channel.stats.recorded_date).toLocaleDateString('ja-JP')}
+										</p>
+									{/if}
+								</div>
+								<div class="flex items-center gap-1 text-gray-400">
+									<ExternalLink size={18} />
+								</div>
+							</div>
+
+							<!-- 統計カード -->
+							{#if channel.stats}
+								<div class="grid grid-cols-3 gap-4 mb-4">
+									<div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 text-center">
+										<div class="flex items-center justify-center gap-2 mb-2">
+											<Users size={18} class="text-red-600" />
+											<span class="text-xs text-red-700 font-medium">登録者</span>
+										</div>
+										<p class="text-2xl font-bold text-red-700">{channel.stats.subscriber_count.toLocaleString()}</p>
+									</div>
+									<div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center">
+										<div class="flex items-center justify-center gap-2 mb-2">
+											<Eye size={18} class="text-blue-600" />
+											<span class="text-xs text-blue-700 font-medium">総再生回数</span>
+										</div>
+										<p class="text-2xl font-bold text-blue-700">{channel.stats.view_count.toLocaleString()}</p>
+									</div>
+									<div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center">
+										<div class="flex items-center justify-center gap-2 mb-2">
+											<Video size={18} class="text-purple-600" />
+											<span class="text-xs text-purple-700 font-medium">動画数</span>
+										</div>
+										<p class="text-2xl font-bold text-purple-700">{channel.stats.video_count.toLocaleString()}</p>
+									</div>
+								</div>
+							{:else}
+								<div class="bg-gray-50 rounded-lg p-4 text-center text-gray-500 text-sm mb-4">
+									統計データがまだありません
+								</div>
+							{/if}
+
+							<!-- トップ動画 -->
+							{#if channel.topVideos.length > 0}
+								<div class="border-t border-gray-100 pt-4">
+									<h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+										<PlayCircle size={16} class="text-red-600" />
+										人気動画
+									</h4>
+									<div class="space-y-2">
+										{#each channel.topVideos.slice(0, 3) as video, i}
+											<div class="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+												<span class="text-lg font-bold text-gray-300 w-6 text-center">#{i + 1}</span>
+												{#if video.thumbnail_url}
+													<img src={video.thumbnail_url} alt={video.title} class="w-20 h-12 rounded object-cover" />
+												{:else}
+													<div class="w-20 h-12 rounded bg-gray-200 flex items-center justify-center">
+														<Video size={16} class="text-gray-400" />
+													</div>
+												{/if}
+												<div class="flex-1 min-w-0">
+													<p class="text-sm font-medium text-gray-800 truncate">{video.title}</p>
+													{#if video.stats}
+														<div class="flex items-center gap-3 text-xs text-gray-500 mt-1">
+															<span class="flex items-center gap-1">
+																<Eye size={12} />
+																{video.stats.view_count.toLocaleString()}
+															</span>
+															<span class="flex items-center gap-1">
+																<ThumbsUp size={12} />
+																{video.stats.like_count.toLocaleString()}
+															</span>
+															<span class="flex items-center gap-1">
+																<MessageSquare size={12} />
+																{video.stats.comment_count.toLocaleString()}
+															</span>
+														</div>
+													{/if}
+												</div>
+											</div>
+										{/each}
+									</div>
+									{#if channel.topVideos.length > 3}
+										<p class="text-center text-sm text-gray-400 mt-2">他 {channel.topVideos.length - 3} 件の動画</p>
+									{/if}
+								</div>
+							{/if}
+						</a>
+					{/each}
+				</div>
+			</div>
+		{:else if !data.youtubeData.hasApiKey}
+			<!-- APIキー未設定時 -->
+			<div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+				<div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-red-50 to-pink-50">
+					<div class="flex items-center gap-2">
+						<Youtube size={20} class="text-red-600" />
+						<h2 class="font-semibold text-gray-800">YouTube統計</h2>
+					</div>
+				</div>
+				<div class="p-8 text-center">
+					<Youtube size={48} class="mx-auto text-gray-300 mb-4" />
+					<p class="text-gray-600 mb-2">YouTubeチャンネルの統計を追跡しましょう</p>
+					<p class="text-sm text-gray-400 mb-4">登録者数・再生回数・動画パフォーマンスを自動取得</p>
+					<a href="/dashboard/projects/{data.project.id}/youtube" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+						<Settings size={16} />
+						設定する
+					</a>
+				</div>
+			</div>
+		{/if}
+
+		<!-- ボード・ドキュメント タブUI -->
+		<div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+			<!-- タブヘッダー -->
+			<div class="border-b border-gray-200">
+				<div class="flex">
+					<button
+						onclick={() => activeTab = 'boards'}
+						class="flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors {activeTab === 'boards' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}"
+					>
+						<LayoutGrid size={18} />
+						ボード
+						<span class="px-2 py-0.5 text-xs rounded-full {activeTab === 'boards' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">{data.boards.length}</span>
+					</button>
+					<button
+						onclick={() => activeTab = 'documents'}
+						class="flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors {activeTab === 'documents' ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}"
+					>
+						<FileText size={18} />
+						ドキュメント
+						<span class="px-2 py-0.5 text-xs rounded-full {activeTab === 'documents' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}">{data.documents.length}</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- タブコンテンツ -->
+			<div class="p-6">
+				{#if activeTab === 'boards'}
+					<!-- ボード管理タブ -->
+					<div class="flex items-center justify-between mb-4">
+						<h3 class="text-lg font-semibold text-gray-800">プロジェクトボード</h3>
+						<button onclick={() => showAddBoard = !showAddBoard} class="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+							<Plus size={16} />
+							ボード作成
+						</button>
+					</div>
+
+					{#if showAddBoard}
+						<form method="POST" action="?/createBoard" use:enhance={handleFormSubmit} class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+							<div class="flex gap-3 items-end">
+								<div class="flex-1">
+									<label class="block text-sm font-medium text-gray-700 mb-1">ボード名</label>
+									<input type="text" name="title" placeholder="新しいボードの名前を入力..." required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+								</div>
+								<button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">作成</button>
+								<button type="button" onclick={() => showAddBoard = false} class="px-3 py-2 text-gray-500 hover:bg-gray-200 rounded-lg">
+									<X size={18} />
+								</button>
+							</div>
+						</form>
+					{/if}
+
+					{#if data.boards.length === 0}
+						<div class="text-center py-12">
+							<LayoutGrid size={48} class="mx-auto text-gray-300 mb-3" />
+							<p class="text-gray-500 mb-2">このプロジェクトにボードがありません</p>
+							<p class="text-gray-400 text-sm mb-4">タスクを管理するボードを作成しましょう</p>
+							<button onclick={() => showAddBoard = true} class="inline-flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+								<Plus size={16} /> 最初のボードを作成
+							</button>
+						</div>
+					{:else}
+						<div class="space-y-4">
+							{#each data.boards as board}
+								<div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 overflow-hidden">
+									<!-- ボードヘッダー -->
+									<div class="p-4 flex items-center justify-between bg-white bg-opacity-50 border-b border-blue-100">
+										<button
+											onclick={() => expandedBoard = expandedBoard === board.id ? null : board.id}
+											class="flex items-center gap-3 flex-1 text-left"
+										>
+											<div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
+												<LayoutGrid size={20} class="text-white" />
+											</div>
+											<div class="flex-1 min-w-0">
+												<h4 class="font-semibold text-gray-800">{board.title}</h4>
+												<div class="flex items-center gap-4 text-sm text-gray-600 mt-1">
+													<span class="flex items-center gap-1">
+														<FolderOpen size={14} class="text-blue-500" />
+														{board.list_count} リスト
+													</span>
+													<span class="flex items-center gap-1">
+														<FileText size={14} class="text-indigo-500" />
+														{board.card_count} カード
+													</span>
+												</div>
+											</div>
+											{#if expandedBoard === board.id}
+												<ChevronUp size={18} class="text-gray-400 flex-shrink-0" />
+											{:else}
+												<ChevronDown size={18} class="text-gray-400 flex-shrink-0" />
+											{/if}
+										</button>
+										<div class="flex items-center gap-2 ml-2">
+											<a href="/dashboard/board/{board.id}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors" title="ボードページを開く">
+												<ExternalLink size={16} />
+											</a>
+											<form method="POST" action="?/deleteBoard" use:enhance={handleFormSubmit}>
+												<input type="hidden" name="id" value={board.id} />
+												<button type="submit" onclick={(e) => { if (!confirm('このボードを削除しますか？')) e.preventDefault(); }} class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+													<Trash2 size={16} />
+												</button>
+											</form>
+										</div>
+									</div>
+
+									<!-- ボード展開コンテンツ（リスト＆カード） -->
+									{#if expandedBoard === board.id}
+										<div class="p-4 overflow-x-auto">
+											<div class="flex gap-4 min-w-max">
+												<!-- リスト表示 -->
+												{#each board.lists || [] as list}
+													<div class="w-72 bg-white rounded-lg shadow-sm border border-gray-200 flex-shrink-0">
+														<!-- リストヘッダー -->
+														<div class="p-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+															<h5 class="font-medium text-gray-800">{list.title}</h5>
+															<form method="POST" action="?/deleteList" use:enhance={handleFormSubmit}>
+																<input type="hidden" name="id" value={list.id} />
+																<button type="submit" onclick={(e) => { if (!confirm('このリストを削除しますか？')) e.preventDefault(); }} class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded">
+																	<Trash2 size={14} />
+																</button>
+															</form>
+														</div>
+
+														<!-- カード一覧 -->
+														<div class="p-2 space-y-2 max-h-96 overflow-y-auto">
+															{#each list.cards || [] as card}
+																<div class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+																	{#if editingCard?.id === card.id}
+																		<!-- カード編集フォーム -->
+																		<form method="POST" action="?/updateCard" use:enhance={handleFormSubmit} class="space-y-2">
+																			<input type="hidden" name="id" value={card.id} />
+																			<input
+																				type="text"
+																				name="title"
+																				value={editingCard.title}
+																				oninput={(e) => editingCard && (editingCard.title = e.currentTarget.value)}
+																				placeholder="カード名"
+																				required
+																				class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+																			/>
+																			<textarea
+																				name="description"
+																				value={editingCard.description}
+																				oninput={(e) => editingCard && (editingCard.description = e.currentTarget.value)}
+																				placeholder="説明（任意）"
+																				rows="2"
+																				class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+																			></textarea>
+																			<input
+																				type="date"
+																				name="due_date"
+																				value={editingCard.due_date}
+																				oninput={(e) => editingCard && (editingCard.due_date = e.currentTarget.value)}
+																				class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+																			/>
+																			<div class="flex gap-2">
+																				<button type="submit" class="flex-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
+																				<button type="button" onclick={() => editingCard = null} class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded">
+																					<X size={16} />
+																				</button>
+																			</div>
+																		</form>
+																	{:else}
+																		<!-- カード表示 -->
+																		<div class="flex items-start justify-between gap-2">
+																			<div class="flex-1 min-w-0">
+																				<h6 class="text-sm font-medium text-gray-800 break-words">{card.title}</h6>
+																				{#if card.description}
+																					<p class="text-xs text-gray-600 mt-1 line-clamp-2">{card.description}</p>
+																				{/if}
+																				{#if card.due_date}
+																					<div class="flex items-center gap-1 mt-2 text-xs text-gray-500">
+																						<Calendar size={12} />
+																						{new Date(card.due_date).toLocaleDateString('ja-JP')}
+																					</div>
+																				{/if}
+																			</div>
+																			<div class="flex flex-col gap-1">
+																				<button
+																					onclick={() => editingCard = {
+																						id: card.id,
+																						title: card.title,
+																						description: card.description || '',
+																						due_date: card.due_date || '',
+																						list_id: card.list_id
+																					}}
+																					class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+																					title="編集"
+																				>
+																					<Pencil size={14} />
+																				</button>
+																				<form method="POST" action="?/deleteCard" use:enhance={handleFormSubmit}>
+																					<input type="hidden" name="id" value={card.id} />
+																					<button type="submit" onclick={(e) => { if (!confirm('このカードを削除しますか？')) e.preventDefault(); }} class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded">
+																						<Trash2 size={14} />
+																					</button>
+																				</form>
+																			</div>
+																		</div>
+																	{/if}
+																</div>
+															{/each}
+
+															<!-- カード追加フォーム -->
+															{#if showAddCardForList === list.id}
+																<form method="POST" action="?/createCard" use:enhance={handleFormSubmit} class="p-2 bg-white rounded-lg border border-blue-200">
+																	<input type="hidden" name="list_id" value={list.id} />
+																	<input
+																		type="text"
+																		name="title"
+																		placeholder="カード名を入力..."
+																		required
+																		autofocus
+																		class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded mb-2 focus:ring-2 focus:ring-blue-500"
+																	/>
+																	<div class="flex gap-2">
+																		<button type="submit" class="flex-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">追加</button>
+																		<button type="button" onclick={() => showAddCardForList = null} class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded">
+																			<X size={16} />
+																		</button>
+																	</div>
+																</form>
+															{:else}
+																<button
+																	onclick={() => showAddCardForList = list.id}
+																	class="w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2 justify-center transition-colors"
+																>
+																	<Plus size={16} />
+																	カードを追加
+																</button>
+															{/if}
+														</div>
+													</div>
+												{/each}
+
+												<!-- リスト追加 -->
+												{#if showAddListForBoard === board.id}
+													<div class="w-72 bg-white rounded-lg shadow-sm border border-blue-200 p-3 flex-shrink-0">
+														<form method="POST" action="?/createList" use:enhance={handleFormSubmit}>
+															<input type="hidden" name="board_id" value={board.id} />
+															<input
+																type="text"
+																name="title"
+																placeholder="リスト名を入力..."
+																required
+																autofocus
+																class="w-full px-3 py-2 text-sm border border-gray-300 rounded mb-3 focus:ring-2 focus:ring-blue-500"
+															/>
+															<div class="flex gap-2">
+																<button type="submit" class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">追加</button>
+																<button type="button" onclick={() => showAddListForBoard = null} class="px-3 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded">
+																	<X size={16} />
+																</button>
+															</div>
+														</form>
+													</div>
+												{:else}
+													<button
+														onclick={() => showAddListForBoard = board.id}
+														class="w-72 bg-white bg-opacity-60 hover:bg-opacity-80 rounded-lg border-2 border-dashed border-blue-300 p-4 flex items-center justify-center gap-2 text-blue-600 font-medium transition-colors flex-shrink-0"
+													>
+														<Plus size={20} />
+														リストを追加
+													</button>
+												{/if}
+											</div>
+										</div>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
+				{:else}
+					<!-- ドキュメントタブ -->
+					<div class="flex items-center justify-between mb-4">
+						<h3 class="text-lg font-semibold text-gray-800">プロジェクトドキュメント</h3>
+						<button onclick={() => showAddDocument = !showAddDocument} class="flex items-center gap-1 px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+							<Plus size={16} />
+							ドキュメント作成
+						</button>
+					</div>
+
+					{#if showAddDocument}
+						<form method="POST" action="?/createDocument" use:enhance={handleFormSubmit} class="mb-6 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+							<div class="flex gap-3 items-end">
+								<div class="flex-1">
+									<label class="block text-sm font-medium text-gray-700 mb-1">ドキュメント名</label>
+									<input type="text" name="title" placeholder="新しいドキュメントの名前を入力..." required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+								</div>
+								<button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">作成</button>
+								<button type="button" onclick={() => showAddDocument = false} class="px-3 py-2 text-gray-500 hover:bg-gray-200 rounded-lg">
+									<X size={18} />
+								</button>
+							</div>
+						</form>
+					{/if}
+
+					{#if data.documents.length === 0}
+						<div class="text-center py-12">
+							<FileText size={48} class="mx-auto text-gray-300 mb-3" />
+							<p class="text-gray-500 mb-2">このプロジェクトにドキュメントがありません</p>
+							<p class="text-gray-400 text-sm mb-4">メモや仕様書を管理しましょう</p>
+							<button onclick={() => showAddDocument = true} class="inline-flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+								<Plus size={16} /> 最初のドキュメントを作成
+							</button>
+						</div>
+					{:else}
+						<div class="space-y-3">
+							{#each data.documents as doc}
+								<div class="border border-gray-200 rounded-lg overflow-hidden hover:border-emerald-300 transition-colors">
+									<div class="flex items-center gap-3 p-4 bg-gray-50 hover:bg-emerald-50 transition-colors">
+										<button
+											onclick={() => expandedDocument = expandedDocument === doc.id ? null : doc.id}
+											class="flex items-center gap-3 flex-1 min-w-0 text-left"
+										>
+											<FileText size={20} class="text-emerald-500 flex-shrink-0" />
+											<div class="flex-1 min-w-0">
+												<h4 class="font-medium text-gray-800">{doc.title}</h4>
+												<p class="text-xs text-gray-500">更新: {new Date(doc.updated_at).toLocaleDateString('ja-JP')}</p>
+											</div>
+											{#if expandedDocument === doc.id}
+												<ChevronUp size={18} class="text-gray-400" />
+											{:else}
+												<ChevronDown size={18} class="text-gray-400" />
+											{/if}
+										</button>
+										<div class="flex items-center gap-2">
+											<a href="/dashboard/projects/{data.project.id}/documents/{doc.id}" class="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg" title="編集">
+												<Edit2 size={16} />
+											</a>
+											<form method="POST" action="?/deleteDocument" use:enhance={handleFormSubmit}>
+												<input type="hidden" name="id" value={doc.id} />
+												<button type="submit" onclick={(e) => { if (!confirm('このドキュメントを削除しますか？')) e.preventDefault(); }} class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+													<Trash2 size={16} />
+												</button>
+											</form>
+										</div>
+									</div>
+									{#if expandedDocument === doc.id}
+										<div class="p-4 bg-white border-t border-gray-100">
+											{#if doc.content}
+												<div class="prose prose-sm max-w-none text-gray-600 whitespace-pre-wrap">{doc.content.substring(0, 500)}{doc.content.length > 500 ? '...' : ''}</div>
+											{:else}
+												<p class="text-gray-400 text-sm italic">内容がありません</p>
+											{/if}
+											<div class="mt-3 pt-3 border-t border-gray-100">
+												<a href="/dashboard/projects/{data.project.id}/documents/{doc.id}" class="inline-flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700">
+													<ExternalLink size={14} />
+													全文を見る・編集する
+												</a>
+											</div>
+										</div>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
+				{/if}
+			</div>
+		</div>
+
+		<!-- SNS連携設定 -->
+		<div class="bg-white rounded-xl shadow-md overflow-hidden">
+			<div class="p-4 border-b border-gray-100 flex items-center justify-between" style="background-color: #8B5CF610">
+				<div class="flex items-center gap-2">
+					<Gamepad2 size={20} class="text-purple-500" />
+					<h2 class="font-semibold text-gray-800">SNS連携設定</h2>
+				</div>
+			</div>
+			<div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+				<!-- YouTube連携 -->
+				<div class="p-4 bg-red-50 rounded-lg border border-red-100">
+					<div class="flex items-center justify-between mb-2">
+						<div class="flex items-center gap-2">
+							<Youtube size={20} class="text-red-600" />
+							<span class="font-medium text-red-800">YouTube</span>
+						</div>
+						<a href="/dashboard/projects/{data.project.id}/youtube" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-1">
+							分析 <ExternalLink size={14} />
+						</a>
+					</div>
+					<p class="text-sm text-gray-600">チャンネル登録者数・再生回数を自動取得</p>
+				</div>
+
+				<!-- Instagram連携 -->
+				<div class="p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-pink-100">
+					<div class="flex items-center justify-between mb-2">
+						<div class="flex items-center gap-2">
+							<Instagram size={20} class="text-pink-600" />
+							<span class="font-medium text-pink-800">Instagram</span>
+						</div>
+						<a href="/dashboard/projects/{data.project.id}/instagram" class="text-sm text-pink-600 hover:text-pink-700 flex items-center gap-1">
+							{data.instagramData.hasSettings ? '分析' : '設定'} <ExternalLink size={14} />
+						</a>
+					</div>
+					{#if data.instagramData.account}
+						<div class="space-y-1">
+							<p class="text-sm text-gray-700 font-medium">@{data.instagramData.account.username}</p>
+							<p class="text-xs text-gray-600">{data.instagramData.account.followers_count.toLocaleString()} フォロワー</p>
+						</div>
+					{:else}
+						<p class="text-sm text-gray-600">アカウント統計を自動取得</p>
+					{/if}
+				</div>
+
+				<!-- Facebook連携 -->
+				<div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+					<div class="flex items-center justify-between mb-2">
+						<div class="flex items-center gap-2">
+							<Facebook size={20} class="text-blue-600" />
+							<span class="font-medium text-blue-800">Facebook</span>
+						</div>
+						<a href="/dashboard/projects/{data.project.id}/instagram" class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+							{data.facebookData.hasSettings ? '分析' : '設定'} <ExternalLink size={14} />
+						</a>
+					</div>
+					{#if data.facebookData.page}
+						<div class="space-y-1">
+							<p class="text-sm text-gray-700 font-medium">{data.facebookData.page.name}</p>
+							<p class="text-xs text-gray-600">{data.facebookData.page.fan_count.toLocaleString()} いいね</p>
+						</div>
+					{:else}
+						<p class="text-sm text-gray-600">ページ統計を自動取得</p>
+					{/if}
+				</div>
+
+				<!-- Discord連携 -->
+				<div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
+					<div class="flex items-center justify-between mb-2">
+						<div class="flex items-center gap-2">
+							<Gamepad2 size={20} class="text-purple-600" />
+							<span class="font-medium text-purple-800">Discord通知</span>
+						</div>
+						<a href="/dashboard/discord-settings" class="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1">
+							設定 <ExternalLink size={14} />
+						</a>
+					</div>
+					{#if data.discordSettings}
+						<div class="flex items-center gap-2">
+							<span class="px-2 py-0.5 text-xs rounded-full {data.discordSettings.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">
+								{data.discordSettings.enabled ? '有効' : '無効'}
+							</span>
+							{#if data.discordSettings.webhook_url}
+								<span class="text-xs text-purple-600">Webhook設定済み</span>
+							{/if}
+						</div>
+					{:else}
+						<p class="text-sm text-gray-500">未設定</p>
+					{/if}
+				</div>
+			</div>
+		</div>
+	</main>
+</div>
+
+<!-- Edit Project Modal -->
+{#if editProjectModal}
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) editProjectModal = false; }} onkeydown={(e) => { if (e.key === 'Escape') editProjectModal = false; }}>
+		<div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-bold text-gray-800">プロジェクト設定</h2>
+				<button onclick={() => editProjectModal = false} class="p-1 hover:bg-gray-100 rounded-lg"><X size={20} class="text-gray-500" /></button>
+			</div>
+			<form method="POST" action="?/updateProject" use:enhance={handleFormSubmit}>
+				<input type="text" name="title" value={data.project.title} placeholder="プロジェクト名" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 mb-3" />
+				<textarea name="description" value={data.project.description || ''} placeholder="説明（任意）" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 mb-3"></textarea>
+
+				<div class="mb-4">
+					<p class="text-sm font-medium text-gray-700 mb-2">タグ</p>
+					<div class="flex flex-wrap gap-2">
+						{#each data.allTags as tag}
+							<button type="button" onclick={() => toggleTag(tag.id)} class="px-3 py-1.5 text-sm rounded-full border-2 transition-all {selectedTagIds.includes(tag.id) ? 'text-white' : 'text-gray-600 border-gray-300 hover:border-gray-400'}" style={selectedTagIds.includes(tag.id) ? `background-color: ${tag.color}; border-color: ${tag.color}` : ''}>
+								{tag.name}
+							</button>
+						{/each}
+					</div>
+					{#each selectedTagIds as tagId}
+						<input type="hidden" name="tag_ids" value={tagId} />
+					{/each}
+				</div>
+
+				<div class="mb-3">
+					<p class="text-sm font-medium text-gray-700 mb-2">カラー</p>
+					<div class="flex gap-2">
+						{#each projectColors as color}
+							<button type="button" onclick={() => (editColor = color)} class="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110" style="background-color: {color}; border-color: {editColor === color ? '#1F2937' : 'transparent'}" aria-label="色を選択: {color}"></button>
+						{/each}
+					</div>
+					<input type="hidden" name="color" value={editColor} />
+				</div>
+				<div class="mb-4">
+					<p class="text-sm font-medium text-gray-700 mb-2">ステータス</p>
+					<select name="status" value={data.project.status} class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+						<option value="active">進行中</option>
+						<option value="completed">完了</option>
+						<option value="on_hold">保留</option>
+					</select>
+				</div>
+				<div class="flex gap-3 justify-end">
+					<button type="button" onclick={() => (editProjectModal = false)} class="px-5 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">キャンセル</button>
+					<button type="submit" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">更新</button>
+				</div>
+			</form>
+
+			<div class="mt-4 pt-4 border-t border-gray-200">
+				<form method="POST" action="?/deleteProject" use:enhance>
+					<button type="submit" onclick={(e) => { if (!confirm('このプロジェクトを削除しますか？関連するデータもすべて削除されます。')) e.preventDefault(); }} class="w-full px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm border border-red-200">
+						プロジェクトを削除
+					</button>
+				</form>
+			</div>
+		</div>
+	</div>
+{/if}
