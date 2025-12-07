@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 
 		// ドキュメントを取得
 		const document = await db.prepare(
-			'SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE id = ? AND project_id = ?'
+			'SELECT id, project_id, title, content, created_at, updated_at FROM project_documents WHERE id = ? AND project_id = ?'
 		)
 			.bind(docId, projectId)
 			.first<Document>();
@@ -89,7 +89,7 @@ export const actions = {
 
 			// ドキュメントを更新
 			await db.prepare(
-				'UPDATE documents SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND project_id = ?'
+				'UPDATE project_documents SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND project_id = ?'
 			)
 				.bind(title, content, docId, projectId)
 				.run();
@@ -123,7 +123,7 @@ export const actions = {
 			}
 
 			// ドキュメントを削除
-			await db.prepare('DELETE FROM documents WHERE id = ? AND project_id = ?')
+			await db.prepare('DELETE FROM project_documents WHERE id = ? AND project_id = ?')
 				.bind(docId, projectId)
 				.run();
 		} catch (err) {

@@ -2,6 +2,17 @@ import Database from 'better-sqlite3';
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
 import { dev } from '$app/environment';
 
+/**
+ * Database Connection Manager
+ *
+ * ローカル開発: better-sqlite3 (local.db) ← 使用されていません
+ * 本番環境: Cloudflare D1
+ *
+ * 重要: 実際のローカル開発では Wrangler の D1 ローカルモードを使用します
+ * - データベースパス: .wrangler/state/v3/d1/miniflare-D1DatabaseObject/*.sqlite
+ * - マイグレーション管理については DATABASE_GUIDE.md を参照
+ */
+
 // D1互換のラッパークラス
 class LocalD1PreparedStatement<T = unknown> implements D1PreparedStatement {
 	constructor(
@@ -96,7 +107,7 @@ class LocalD1Database implements D1Database {
 // 開発時はローカルSQLite、本番時はD1を使う
 export function getDB(platform?: App.Platform): D1Database {
 	if (dev || !platform?.env?.DB) {
-		return new LocalD1Database('local.db');
+		return new LocalD1Database('.wrangler/state/v3/d1/miniflare-D1DatabaseObject/e7352547963de7050bd7d94658afc4fe78b61811b7815da12d90be8e863abf4d.sqlite');
 	}
 	return platform.env.DB;
 }

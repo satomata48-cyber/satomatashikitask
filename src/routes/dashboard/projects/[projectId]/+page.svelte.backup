@@ -64,13 +64,12 @@
 	let expandedHistory = $state<number | null>(null);
 	let selectedTagIds = $state<number[]>(data.projectTags.map(t => t.id));
 	let expandedDocument = $state<number | null>(null);
-	let activeTab = $state<'boards' | 'documents' | 'sns'>('boards');
+	let activeTab = $state<'boards' | 'documents'>('boards');
 	let expandedBoard = $state<number | null>(null);
+	let activeSection = $state<'overview' | 'goals' | 'boards' | 'documents' | 'sns'>('overview');
 	let showAddListForBoard = $state<number | null>(null);
 	let showAddCardForList = $state<number | null>(null);
 	let editingCard = $state<{id: number, title: string, description: string, due_date: string} | null>(null);
-	let selectedBoardId = $state<number | null>(null);
-	let selectedDocumentId = $state<number | null>(null);
 
 	const projectColors = [
 		'#3B82F6', '#10B981', '#F59E0B', '#EF4444',
@@ -138,7 +137,7 @@
 <div class="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
 	<!-- Header -->
 	<header class="bg-white shadow-sm">
-		<div class="px-6 py-4 flex items-center justify-between">
+		<div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
 			<div class="flex items-center gap-3">
 				<a href="/dashboard" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="ダッシュボードへ戻る">
 					<ArrowLeft size={20} class="text-gray-600" />
@@ -164,63 +163,8 @@
 		</div>
 	</header>
 
-	<!-- Main Content with Sidebar -->
-	<div class="flex h-[calc(100vh-73px)]">
-		<!-- Left Sidebar -->
-		<aside class="w-64 bg-white border-r border-gray-200 overflow-y-auto">
-			<nav class="p-4">
-				<ul class="space-y-1">
-					<li>
-						<a
-							href="/dashboard/projects/{data.project.id}/dashboard"
-							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 transition-colors"
-						>
-							<BarChart3 size={20} />
-							<span class="text-sm font-medium">ダッシュボード</span>
-						</a>
-					</li>
-					<li>
-						<a
-							href="/dashboard/projects/{data.project.id}/goals"
-							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 transition-colors"
-						>
-							<Target size={20} />
-							<span class="text-sm font-medium">目標管理</span>
-						</a>
-					</li>
-					<li>
-						<a
-							href="/dashboard/projects/{data.project.id}/boards"
-							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 transition-colors"
-						>
-							<LayoutGrid size={20} />
-							<span class="text-sm font-medium">ボード管理</span>
-						</a>
-					</li>
-					<li>
-						<a
-							href="/dashboard/projects/{data.project.id}/documents"
-							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-purple-50 transition-colors"
-						>
-							<FileText size={20} />
-							<span class="text-sm font-medium">ドキュメント管理</span>
-						</a>
-					</li>
-					<li>
-						<a
-							href="/dashboard/projects/{data.project.id}/sns"
-							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-pink-50 transition-colors"
-						>
-							<Users size={20} />
-							<span class="text-sm font-medium">SNS管理</span>
-						</a>
-					</li>
-				</ul>
-			</nav>
-		</aside>
-
-		<!-- Center Main Content -->
-		<main class="flex-1 px-6 py-8 overflow-y-auto">
+	<!-- Main Content -->
+	<main class="max-w-7xl mx-auto px-4 py-8">
 		<!-- プロジェクト概要 -->
 		{#if data.project.description || data.projectTags.length > 0}
 			<div class="bg-white rounded-xl shadow-md p-6 mb-6">
@@ -617,13 +561,12 @@
 				</div>
 			</div>
 
-			<!-- タブコンテンツ (2カラムレイアウト) -->
-			<div class="p-6 flex gap-6">
+			<!-- タブコンテンツ -->
+			<div class="p-6">
 				{#if activeTab === 'boards'}
-					<!-- 左: このプロジェクトのボード管理 -->
-					<div class="flex-1">
-						<div class="flex items-center justify-between mb-4">
-							<h3 class="text-lg font-semibold text-gray-800">このプロジェクトのボード</h3>
+					<!-- ボード管理タブ -->
+					<div class="flex items-center justify-between mb-4">
+						<h3 class="text-lg font-semibold text-gray-800">プロジェクトボード</h3>
 						<button onclick={() => showAddBoard = !showAddBoard} class="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
 							<Plus size={16} />
 							ボード作成
@@ -866,41 +809,7 @@
 							{/each}
 						</div>
 					{/if}
-				</div>
-
-				<!-- 右: 全ボード一覧ウィジェット -->
-				<aside class="w-80 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6">
-					<h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-						<LayoutGrid size={18} class="text-indigo-600" />
-						全てのボード
-					</h3>
-					{#if data.allBoards && data.allBoards.length > 0}
-						<div class="space-y-2">
-							{#each data.allBoards as board}
-								<a
-									href="/dashboard/projects/{board.project_id}?section=boards&board={board.id}"
-									class="block p-3 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg border border-indigo-200 hover:border-indigo-400 hover:shadow-sm transition-all"
-								>
-									<div class="flex items-start justify-between mb-1">
-										<h4 class="font-semibold text-gray-800 text-xs truncate flex-1">{board.title}</h4>
-										<ExternalLink size={12} class="text-indigo-600 flex-shrink-0 ml-2" />
-									</div>
-									<p class="text-xs text-gray-600 mb-2">{board.project_title || 'プロジェクト'}</p>
-									<div class="flex items-center gap-2 text-xs text-gray-600">
-										<span>{board.list_count || 0} リスト</span>
-										<span>•</span>
-										<span>{board.card_count || 0} カード</span>
-									</div>
-								</a>
-							{/each}
-						</div>
-					{:else}
-						<p class="text-gray-500 text-xs text-center py-4">ボードがありません</p>
-					{/if}
-				</aside>
-			{:else if activeTab === 'documents'}
-				<!-- 左: このプロジェクトのドキュメント管理 -->
-				<div class="flex-1">
+				{:else}
 					<!-- ドキュメントタブ -->
 					<div class="flex items-center justify-between mb-4">
 						<h3 class="text-lg font-semibold text-gray-800">プロジェクトドキュメント</h3>
@@ -985,132 +894,7 @@
 							{/each}
 						</div>
 					{/if}
-				</div>
-
-				<!-- 右: 全ドキュメント一覧ウィジェット -->
-				<aside class="w-80 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6">
-					<h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-						<FileText size={18} class="text-purple-600" />
-						全てのドキュメント
-					</h3>
-					{#if data.allDocuments && data.allDocuments.length > 0}
-						<div class="space-y-2">
-							{#each data.allDocuments as doc}
-								<a
-									href="/dashboard/projects/{doc.project_id}/documents/{doc.id}"
-									class="block p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 hover:border-purple-400 hover:shadow-sm transition-all"
-								>
-									<div class="flex items-start justify-between mb-1">
-										<h4 class="font-semibold text-gray-800 text-xs truncate flex-1">{doc.title}</h4>
-										<ExternalLink size={12} class="text-purple-600 flex-shrink-0 ml-2" />
-									</div>
-									<p class="text-xs text-gray-600 mb-1">{doc.project_title || 'プロジェクト'}</p>
-									<p class="text-xs text-gray-500">
-										{new Date(doc.updated_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}
-									</p>
-								</a>
-							{/each}
-						</div>
-					{:else}
-						<p class="text-gray-500 text-xs text-center py-4">ドキュメントがありません</p>
-					{/if}
-				</aside>
-			{:else if activeTab === 'sns'}
-				<!-- 左: SNS管理コンテンツ -->
-				<div class="flex-1">
-					<div class="bg-white rounded-xl shadow-md overflow-hidden">
-						<div class="p-4 border-b border-gray-100 flex items-center justify-between" style="background-color: #8B5CF610">
-							<div class="flex items-center gap-2">
-								<Users size={20} class="text-pink-500" />
-								<h2 class="font-semibold text-gray-800">SNS連携設定</h2>
-							</div>
-						</div>
-						<div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-							<!-- YouTube連携 -->
-							<div class="p-4 bg-red-50 rounded-lg border border-red-100">
-								<div class="flex items-center justify-between mb-2">
-									<div class="flex items-center gap-2">
-										<Youtube size={20} class="text-red-600" />
-										<span class="font-medium text-red-800">YouTube</span>
-									</div>
-									<a href="/dashboard/projects/{data.project.id}/youtube" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-1">
-										分析 <ExternalLink size={14} />
-									</a>
-								</div>
-								<p class="text-sm text-gray-600">チャンネル登録者数・再生回数を自動取得</p>
-							</div>
-
-							<!-- Twitter/X連携 (実装前) -->
-							<div class="p-4 bg-blue-50 rounded-lg border border-blue-100 opacity-60">
-								<div class="flex items-center justify-between mb-2">
-									<div class="flex items-center gap-2">
-										<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>
-										<span class="font-medium text-blue-800">Twitter/X</span>
-									</div>
-									<span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">実装前</span>
-								</div>
-								<p class="text-sm text-gray-600">フォロワー数・エンゲージメント分析</p>
-							</div>
-
-							<!-- Instagram連携 (実装前) -->
-							<div class="p-4 bg-pink-50 rounded-lg border border-pink-100 opacity-60">
-								<div class="flex items-center justify-between mb-2">
-									<div class="flex items-center gap-2">
-										<Instagram size={20} class="text-pink-600" />
-										<span class="font-medium text-pink-800">Instagram</span>
-									</div>
-									<span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">実装前</span>
-								</div>
-								<p class="text-sm text-gray-600">フォロワー数・投稿分析</p>
-							</div>
-
-							<!-- その他のSNS (実装前) -->
-							<div class="p-4 bg-purple-50 rounded-lg border border-purple-100 opacity-60">
-								<div class="flex items-center justify-between mb-2">
-									<div class="flex items-center gap-2">
-										<Users size={20} class="text-purple-600" />
-										<span class="font-medium text-purple-800">その他SNS</span>
-									</div>
-									<span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">実装前</span>
-								</div>
-								<p class="text-sm text-gray-600">TikTok、Facebook、など</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- 右: SNS統計ウィジェット -->
-				<aside class="w-80 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6">
-					<h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-						<Users size={18} class="text-pink-600" />
-						SNS統計
-					</h3>
-					<div class="space-y-3">
-						<!-- YouTube統計 -->
-						<div class="p-3 bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border border-red-200">
-							<div class="flex items-center gap-2 mb-2">
-								<Youtube size={16} class="text-red-600" />
-								<span class="text-xs font-semibold text-gray-800">YouTube</span>
-							</div>
-							<div class="space-y-1">
-								<div class="flex justify-between text-xs">
-									<span class="text-gray-600">登録者数</span>
-									<span class="font-semibold text-gray-800">-</span>
-								</div>
-								<div class="flex justify-between text-xs">
-									<span class="text-gray-600">総再生回数</span>
-									<span class="font-semibold text-gray-800">-</span>
-								</div>
-							</div>
-						</div>
-
-						<!-- その他のSNS統計 (実装前) -->
-						<div class="p-3 bg-gray-50 rounded-lg border border-gray-200 opacity-60">
-							<p class="text-xs text-gray-500 text-center">その他のSNS統計は実装予定</p>
-						</div>
-					</div>
-				</aside>
-			{/if}
+				{/if}
 			</div>
 		</div>
 
@@ -1267,4 +1051,3 @@
 		</div>
 	</div>
 {/if}
-</div>

@@ -14,11 +14,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	login: async ({ request, platform, cookies }) => {
 		const data = await request.formData();
-		const email = data.get('email')?.toString();
+		const username = data.get('email')?.toString();
 		const password = data.get('password')?.toString();
 
-		if (!email || !password) {
-			return fail(400, { error: 'メールアドレスとパスワードを入力してください' });
+		if (!username || !password) {
+			return fail(400, { error: 'ユーザー名とパスワードを入力してください' });
 		}
 
 		const db = getDB(platform);
@@ -26,19 +26,19 @@ export const actions: Actions = {
 		try {
 			// ユーザーを検索
 			const result = await db.prepare(
-				'SELECT id, password_hash FROM users WHERE email = ?'
+				'SELECT id, password_hash FROM users WHERE username = ?'
 			)
-				.bind(email)
+				.bind(username)
 				.first<{ id: number; password_hash: string }>();
 
 			if (!result) {
-				return fail(400, { error: 'メールアドレスまたはパスワードが間違っています' });
+				return fail(400, { error: 'ユーザー名またはパスワードが間違っています' });
 			}
 
 			// パスワードを検証
 			const valid = await bcrypt.compare(password, result.password_hash);
 			if (!valid) {
-				return fail(400, { error: 'メールアドレスまたはパスワードが間違っています' });
+				return fail(400, { error: 'ユーザー名またはパスワードが間違っています' });
 			}
 
 			// セッションを設定
@@ -59,11 +59,11 @@ export const actions: Actions = {
 
 	register: async ({ request, platform, cookies }) => {
 		const data = await request.formData();
-		const email = data.get('email')?.toString();
+		const username = data.get('email')?.toString();
 		const password = data.get('password')?.toString();
 
-		if (!email || !password) {
-			return fail(400, { error: 'メールアドレスとパスワードを入力してください' });
+		if (!username || !password) {
+			return fail(400, { error: 'ユーザー名とパスワードを入力してください' });
 		}
 
 		if (password.length < 6) {
@@ -73,32 +73,32 @@ export const actions: Actions = {
 		const db = getDB(platform);
 
 		try {
-			// メールアドレスの重複チェック
+			// ユーザー名の重複チェック
 			const existing = await db.prepare(
-				'SELECT id FROM users WHERE email = ?'
+				'SELECT id FROM users WHERE username = ?'
 			)
-				.bind(email)
+				.bind(username)
 				.first();
 
 			if (existing) {
-				return fail(400, { error: 'このメールアドレスは既に使用されています' });
+				return fail(400, { error: 'このユーザー名は既に使用されています' });
 			}
 
 			// パスワードをハッシュ化
 			const password_hash = await bcrypt.hash(password, 10);
 
-			// ユーザーを作成（usernameはemailと同じにする）
+			// ユーザーを作成
 			await db.prepare(
-				'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)'
+				'INSERT INTO users (username, password_hash) VALUES (?, ?)'
 			)
-				.bind(email, email, password_hash)
+				.bind(username, password_hash)
 				.run();
 
 			// 作成したユーザーIDを取得
 			const user = await db.prepare(
-				'SELECT id FROM users WHERE email = ?'
+				'SELECT id FROM users WHERE username = ?'
 			)
-				.bind(email)
+				.bind(username)
 				.first<{ id: number }>();
 
 			if (!user) {

@@ -254,14 +254,15 @@ function getCurrentPeriod(repeatCycle: string): { start: string; end: string } {
 	}
 }
 
-export const load: PageServerLoad = async ({ locals, platform, params }) => {
+export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.userId) {
 		throw redirect(303, '/login');
 	}
 
-	const db = getDB(platform);
-	const userId = locals.userId;
 	const projectId = parseInt(params.projectId);
+
+	// ダッシュボードページにリダイレクト
+	throw redirect(303, `/dashboard/projects/${projectId}/dashboard`);
 
 	try {
 		// プロジェクトの取得と所有権確認
@@ -555,6 +556,38 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 			// instagram_*テーブルが存在しない場合は無視
 		}
 
+		// 全ボードを取得（サイドバー表示用）
+		const allBoards = await db
+			.prepare(`
+				SELECT
+					pb.id,
+					pb.project_id,
+					pb.title,
+					pb.position,
+					pb.created_at,
+					p.title as project_title,
+					(SELECT COUNT(*) FROM project_lists pl WHERE pl.project_board_id = pb.id) as list_count,
+					(SELECT COUNT(*) FROM project_cards pc JOIN project_lists pl ON pc.project_list_id = pl.id WHERE pl.project_board_id = pb.id) as card_count
+				FROM project_boards pb
+				LEFT JOIN projects p ON pb.project_id = p.id
+				WHERE p.user_id = ?
+				ORDER BY pb.created_at DESC
+			`)
+			.bind(userId)
+			.all();
+
+		// 全ドキュメントを取得（サイドバー表示用）
+		const allDocuments = await db
+			.prepare(`
+				SELECT pd.id, pd.project_id, pd.title, pd.updated_at, p.title as project_title
+				FROM project_documents pd
+				LEFT JOIN projects p ON pd.project_id = p.id
+				WHERE p.user_id = ?
+				ORDER BY pd.updated_at DESC
+			`)
+			.bind(userId)
+			.all();
+
 		return {
 			project,
 			projectTags: projectTags.results,
@@ -562,6 +595,8 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 			kpiGoals: goalsWithDetails,
 			boards: boardsWithDetails,
 			documents: projectDocuments.results,
+			allBoards: allBoards.results,
+			allDocuments: allDocuments.results,
 			discordSettings: discordSettings ? {
 				...discordSettings,
 				enabled: Boolean(discordSettings.enabled)

@@ -5,10 +5,11 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"dev:wrangler": "wrangler pages dev --compatibility-date=2024-11-19 --d1=DB=satomatashikitask-db --r2=BUCKET=satomatashikitask-files --port=8788 --proxy=5173",
+		"start": "wrangler d1 migrations apply satomatashikitask-db --local --batch-size 100 && npm run build && wrangler pages dev .svelte-kit/cloudflare --persist-to=.wrangler/state",
 		"build": "vite build",
 		"preview": "vite preview",
-		"preview:wrangler": "npm run build && wrangler pages dev .svelte-kit/cloudflare --compatibility-date=2024-11-19 --d1=DB=satomatashikitask-db --r2=BUCKET=satomatashikitask-files",
+		"db:check": "node check-migrations.cjs",
+		"db:reset": "node -e \"const fs=require('fs');const p='.wrangler/state/v3/d1';if(fs.existsSync(p))fs.rmSync(p,{recursive:true,force:true})\" && wrangler d1 migrations apply satomatashikitask-db --local",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
@@ -33,6 +34,7 @@
 	},
 	"dependencies": {
 		"bcryptjs": "^3.0.3",
+		"chart.js": "^4.5.1",
 		"lucide-svelte": "^0.554.0",
 		"svelte-dnd-action": "^0.9.67"
 	}
