@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { Users, Youtube, Instagram, ExternalLink, TrendingUp, Eye, ThumbsUp, Video } from 'lucide-svelte';
+	import { Users, Youtube, Instagram, ExternalLink, TrendingUp, Eye, ThumbsUp, Video, Twitter, Music } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 </script>
@@ -141,27 +141,115 @@
 			{/if}
 		</div>
 
-		<!-- その他のSNS（実装予定） -->
-		<div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md p-6 border border-blue-200 opacity-60">
+		<!-- Twitter/X -->
+		<div class="bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl shadow-md p-6 border border-sky-200">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
-					<div class="p-2 bg-blue-100 rounded-lg">
-						<Users size={24} class="text-blue-600" />
+					<div class="p-2 bg-sky-100 rounded-lg">
+						<Twitter size={24} class="text-sky-600" />
 					</div>
-					<h3 class="font-semibold text-gray-800">その他SNS</h3>
+					<h3 class="font-semibold text-gray-800">Twitter/X</h3>
 				</div>
-				<span class="px-2.5 py-1 text-xs font-medium bg-gray-200 text-gray-600 rounded-full">
-					実装予定
-				</span>
+				{#if data.twitterAccount}
+					<span class="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full">
+						連携済み
+					</span>
+				{:else}
+					<span class="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 border border-gray-300 rounded-full">
+						未連携
+					</span>
+				{/if}
 			</div>
-			<div class="text-center py-6">
-				<p class="text-sm text-gray-600">Twitter/X、TikTok、Facebookなどの連携を予定しています</p>
+
+			{#if data.twitterAccount}
+				<div class="space-y-3 mb-4">
+					<div>
+						<p class="text-xs text-gray-600 mb-1">アカウント名</p>
+						<p class="font-semibold text-gray-800">@{data.twitterAccount.username}</p>
+					</div>
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<p class="text-xs text-gray-600 mb-1">フォロワー数</p>
+							<p class="text-lg font-bold text-gray-800">{data.twitterAccount.followers_count?.toLocaleString() || 0}</p>
+						</div>
+						<div>
+							<p class="text-xs text-gray-600 mb-1">ツイート数</p>
+							<p class="text-lg font-bold text-gray-800">{data.twitterAccount.tweet_count?.toLocaleString() || 0}</p>
+						</div>
+					</div>
+				</div>
+			{:else}
+				<div class="text-center py-6">
+					<p class="text-sm text-gray-600 mb-4">Twitter/Xアカウントを連携して統計を取得しましょう</p>
+					<a
+						href="/dashboard/projects/{data.project.id}/twitter"
+						class="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm"
+					>
+						<Twitter size={16} />
+						連携する
+					</a>
+				</div>
+			{/if}
+		</div>
+
+		<!-- TikTok -->
+		<div class="bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-xl shadow-md p-6 border border-violet-200">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<div class="p-2 bg-violet-100 rounded-lg">
+						<Music size={24} class="text-violet-600" />
+					</div>
+					<h3 class="font-semibold text-gray-800">TikTok</h3>
+				</div>
+				{#if data.tiktokAccount}
+					<span class="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full">
+						連携済み
+					</span>
+				{:else}
+					<span class="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 border border-gray-300 rounded-full">
+						未連携
+					</span>
+				{/if}
 			</div>
+
+			{#if data.tiktokAccount}
+				<div class="space-y-3 mb-4">
+					<div>
+						<p class="text-xs text-gray-600 mb-1">アカウント名</p>
+						<p class="font-semibold text-gray-800">@{data.tiktokAccount.username}</p>
+					</div>
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<p class="text-xs text-gray-600 mb-1">フォロワー数</p>
+							<p class="text-lg font-bold text-gray-800">{data.tiktokAccount.followers_count?.toLocaleString() || 0}</p>
+						</div>
+						<div>
+							<p class="text-xs text-gray-600 mb-1">いいね数</p>
+							<p class="text-lg font-bold text-gray-800">{data.tiktokAccount.likes_count?.toLocaleString() || 0}</p>
+						</div>
+					</div>
+					<div>
+						<p class="text-xs text-gray-600 mb-1">動画数</p>
+						<p class="text-lg font-bold text-gray-800">{data.tiktokAccount.video_count?.toLocaleString() || 0}</p>
+					</div>
+				</div>
+			{:else}
+				<div class="text-center py-6">
+					<p class="text-sm text-gray-600 mb-4">TikTokアカウントを連携して統計を取得しましょう</p>
+					<a
+						href="/dashboard/projects/{data.project.id}/tiktok"
+						class="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors text-sm"
+					>
+						<Music size={16} />
+						連携する
+					</a>
+				</div>
+			{/if}
 		</div>
 	</div>
 
 	<!-- 統計サマリー -->
-	{#if data.youtubeChannel || data.instagramAccount}
+	{#if data.youtubeChannel || data.instagramAccount || data.twitterAccount || data.tiktokAccount}
 		<div class="bg-white rounded-xl shadow-md p-6">
 			<h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
 				<TrendingUp size={20} class="text-indigo-600" />
@@ -200,6 +288,31 @@
 						<p class="text-2xl font-bold text-gray-800">{data.instagramAccount.media_count?.toLocaleString() || 0}</p>
 					</div>
 				{/if}
+				{#if data.twitterAccount}
+					<div class="p-4 bg-sky-50 rounded-lg border border-sky-200">
+						<div class="flex items-center gap-2 mb-2">
+							<Twitter size={16} class="text-sky-600" />
+							<span class="text-xs font-medium text-sky-700">Xフォロワー</span>
+						</div>
+						<p class="text-2xl font-bold text-gray-800">{data.twitterAccount.followers_count?.toLocaleString() || 0}</p>
+					</div>
+				{/if}
+				{#if data.tiktokAccount}
+					<div class="p-4 bg-violet-50 rounded-lg border border-violet-200">
+						<div class="flex items-center gap-2 mb-2">
+							<Music size={16} class="text-violet-600" />
+							<span class="text-xs font-medium text-violet-700">TikTokフォロワー</span>
+						</div>
+						<p class="text-2xl font-bold text-gray-800">{data.tiktokAccount.followers_count?.toLocaleString() || 0}</p>
+					</div>
+					<div class="p-4 bg-fuchsia-50 rounded-lg border border-fuchsia-200">
+						<div class="flex items-center gap-2 mb-2">
+							<ThumbsUp size={16} class="text-fuchsia-600" />
+							<span class="text-xs font-medium text-fuchsia-700">TikTokいいね</span>
+						</div>
+						<p class="text-2xl font-bold text-gray-800">{data.tiktokAccount.likes_count?.toLocaleString() || 0}</p>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}
@@ -222,20 +335,20 @@
 				<Instagram size={24} class="mx-auto text-pink-600 mb-2" />
 				<p class="text-sm font-medium text-gray-800">Instagram分析</p>
 			</a>
-			<button
-				disabled
-				class="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center opacity-50 cursor-not-allowed"
+			<a
+				href="/dashboard/projects/{data.project.id}/twitter"
+				class="p-4 bg-sky-50 rounded-lg border border-sky-200 hover:border-sky-400 hover:shadow-sm transition-all text-center"
 			>
-				<Users size={24} class="mx-auto text-gray-400 mb-2" />
-				<p class="text-sm font-medium text-gray-500">Twitter/X</p>
-			</button>
-			<button
-				disabled
-				class="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center opacity-50 cursor-not-allowed"
+				<Twitter size={24} class="mx-auto text-sky-600 mb-2" />
+				<p class="text-sm font-medium text-gray-800">Twitter/X設定</p>
+			</a>
+			<a
+				href="/dashboard/projects/{data.project.id}/tiktok"
+				class="p-4 bg-violet-50 rounded-lg border border-violet-200 hover:border-violet-400 hover:shadow-sm transition-all text-center"
 			>
-				<Video size={24} class="mx-auto text-gray-400 mb-2" />
-				<p class="text-sm font-medium text-gray-500">TikTok</p>
-			</button>
+				<Music size={24} class="mx-auto text-violet-600 mb-2" />
+				<p class="text-sm font-medium text-gray-800">TikTok設定</p>
+			</a>
 		</div>
 	</div>
 </div>

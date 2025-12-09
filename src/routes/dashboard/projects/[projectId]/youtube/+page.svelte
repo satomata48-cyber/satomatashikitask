@@ -32,18 +32,58 @@
 	let showApiKeyForm = $state(false);
 	let showAddChannel = $state(false);
 	let loading = $state(false);
+	let errorMessage = $state('');
+	let successMessage = $state('');
 	let chartInstances = $state<Map<number, Chart>>(new Map());
+	let testingConnection = $state(false);
 
 	function handleFormSubmit() {
 		loading = true;
-		return async ({ result }: { result: { type: string } }) => {
+		errorMessage = '';
+		successMessage = '';
+		return async ({ result }: { result: { type: string; data?: any } }) => {
 			loading = false;
 			if (result.type === 'success') {
 				showApiKeyForm = false;
 				showAddChannel = false;
+				successMessage = result.data?.message || 'Successfully saved!';
 				await invalidateAll();
+				// Clear success message after 3 seconds
+				setTimeout(() => successMessage = '', 3000);
+			} else if (result.type === 'failure') {
+				errorMessage = result.data?.error || 'An error occurred';
+				console.error('Form submission failed:', result.data);
+			} else if (result.type === 'error') {
+				errorMessage = 'An unexpected error occurred';
+				console.error('Form submission error:', result);
 			}
 		};
+	}
+
+	async function testConnection() {
+		testingConnection = true;
+		errorMessage = '';
+		successMessage = '';
+		try {
+			const formData = new FormData();
+			const response = await fetch(`?/testConnection`, {
+				method: 'POST',
+				body: formData
+			});
+			const result = await response.json();
+
+			if (result.type === 'success') {
+				successMessage = result.data?.message || 'Connection successful!';
+				setTimeout(() => successMessage = '', 3000);
+			} else if (result.type === 'failure') {
+				errorMessage = result.data?.error || 'Connection test failed';
+			}
+		} catch (err) {
+			errorMessage = 'Connection test failed';
+			console.error('Test connection error:', err);
+		} finally {
+			testingConnection = false;
+		}
 	}
 
 	function formatNumber(num: number): string {
@@ -235,12 +275,22 @@
 		{/if}
 
 		{#if data.hasApiKey}
-			<div class="flex items-center justify-between mb-6">
+			<div class="flex items-center justify-between mb-6 gap-3">
 				<h2 class="text-lg font-semibold text-white">Registered Channels</h2>
-				<button onclick={() => showAddChannel = !showAddChannel} class="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-					<Plus size={18} />
-					Add Channel
-				</button>
+				<div class="flex items-center gap-2">
+					<button
+						onclick={() => testConnection()}
+						disabled={testingConnection}
+						class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+					>
+						<RefreshCw size={18} class={testingConnection ? 'animate-spin' : ''} />
+						{testingConnection ? 'Testing...' : 'Test Connection'}
+					</button>
+					<button onclick={() => showAddChannel = !showAddChannel} class="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+						<Plus size={18} />
+						Add Channel
+					</button>
+				</div>
 			</div>
 
 			{#if showAddChannel}
@@ -250,7 +300,7 @@
 							<input
 								type="text"
 								name="channel_handle"
-								placeholder="@channelhandle or channel name"
+								placeholder="@channelhandle (例: @satomata48etfmania)"
 								required
 								class="flex-1 px-4 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500"
 							/>
@@ -498,6 +548,30 @@
 					{/each}
 				</div>
 			{/if}
+		{/if}
+
+		<!-- Error and Success Messages -->
+		{#if errorMessage}
+			<div class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg border-2 border-red-600 max-w-md">
+				<div class="flex items-start gap-3">
+					<div class="flex-1">
+						<p class="font-semibold mb-1">Error</p>
+						<p class="text-sm">{errorMessage}</p>
+					</div>
+					<button onclick={() => errorMessage = ''} class="text-white hover:text-gray-200">
+						<span class="text-xl">&times;</span>
+					</button>
+				</div>
+			</div>
+		{/if}
+
+		{#if successMessage}
+			<div class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg border-2 border-green-600">
+				<div class="flex items-center gap-2">
+					<span class="text-xl">✓</span>
+					<p class="font-semibold">{successMessage}</p>
+				</div>
+			</div>
 		{/if}
 
 		{#if form?.error}

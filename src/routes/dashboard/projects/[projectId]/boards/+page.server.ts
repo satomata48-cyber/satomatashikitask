@@ -70,28 +70,6 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
 			.bind(projectId)
 			.all<ProjectBoard>();
 
-		// 全てのボード一覧（ウィジェット用）
-		const allBoards = await db
-			.prepare(`
-				SELECT
-					pb.id,
-					pb.project_id,
-					pb.title,
-					pb.position,
-					pb.created_at,
-					p.title as project_title,
-					(SELECT COUNT(*) FROM project_lists pl WHERE pl.project_board_id = pb.id) as list_count,
-					(SELECT COUNT(*) FROM project_cards pc
-					 JOIN project_lists pl ON pc.project_list_id = pl.id
-					 WHERE pl.project_board_id = pb.id) as card_count
-				FROM project_boards pb
-				LEFT JOIN projects p ON pb.project_id = p.id
-				WHERE p.user_id = ?
-				ORDER BY pb.created_at DESC
-			`)
-			.bind(userId)
-			.all();
-
 		// 選択されたボードのIDを取得
 		const selectedBoardId = url.searchParams.get('board');
 		let selectedBoard = null;
@@ -135,7 +113,6 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
 		return {
 			project,
 			boards: boards.results,
-			allBoards: allBoards.results,
 			selectedBoard,
 			lists
 		};

@@ -48,10 +48,38 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 			.bind(projectId)
 			.first();
 
+		// Twitter/X統計を取得
+		const twitterAccount = await db
+			.prepare(`
+				SELECT ta.*, ts.followers_count, ts.following_count, ts.tweet_count
+				FROM twitter_accounts ta
+				LEFT JOIN twitter_stats ts ON ta.id = ts.account_id
+				WHERE ta.project_id = ?
+				ORDER BY ts.recorded_date DESC
+				LIMIT 1
+			`)
+			.bind(projectId)
+			.first();
+
+		// TikTok統計を取得
+		const tiktokAccount = await db
+			.prepare(`
+				SELECT ta.*, ts.followers_count, ts.following_count, ts.likes_count, ts.video_count
+				FROM tiktok_accounts ta
+				LEFT JOIN tiktok_stats ts ON ta.id = ts.account_id
+				WHERE ta.project_id = ?
+				ORDER BY ts.recorded_date DESC
+				LIMIT 1
+			`)
+			.bind(projectId)
+			.first();
+
 		return {
 			project,
 			youtubeChannel,
-			instagramAccount
+			instagramAccount,
+			twitterAccount,
+			tiktokAccount
 		};
 	} catch (err) {
 		console.error('SNS load error:', err);

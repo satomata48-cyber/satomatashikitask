@@ -31,7 +31,8 @@
 		FolderOpen,
 		Pencil,
 		Instagram,
-		Facebook
+		Facebook,
+		Send
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -213,6 +214,24 @@
 						>
 							<Users size={20} />
 							<span class="text-sm font-medium">SNS管理</span>
+						</a>
+					</li>
+					<li>
+						<a
+							href="/dashboard/projects/{data.project.id}/analytics"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-emerald-50 transition-colors"
+						>
+							<BarChart3 size={20} />
+							<span class="text-sm font-medium">SNS分析</span>
+						</a>
+					</li>
+					<li>
+						<a
+							href="/dashboard/projects/{data.project.id}/posts"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-sky-50 transition-colors"
+						>
+							<Send size={20} />
+							<span class="text-sm font-medium">SNS投稿</span>
 						</a>
 					</li>
 				</ul>

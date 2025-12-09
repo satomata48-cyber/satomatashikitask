@@ -33,42 +33,9 @@
 	<title>ボード管理 - {data.project.title}</title>
 </svelte:head>
 
-<div class="p-6 flex gap-6">
-	<!-- 左カラム: 全てのボード -->
-	<aside class="w-96">
-		<div class="bg-white rounded-xl shadow-md p-4 sticky top-6">
-			<h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-				<LayoutGrid size={20} class="text-indigo-600" />
-				全てのボード
-			</h3>
-			{#if data.allBoards && data.allBoards.length > 0}
-				<div class="space-y-3">
-					{#each data.allBoards as board}
-						<a
-							href="/dashboard/projects/{board.project_id}/boards?board={board.id}"
-							class="block p-4 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg border border-indigo-200 hover:border-indigo-400 hover:shadow-md transition-all"
-						>
-							<div class="flex items-start justify-between mb-2">
-								<h4 class="font-semibold text-gray-800 text-sm flex-1 truncate">{board.title}</h4>
-								<ExternalLink size={14} class="text-indigo-600 flex-shrink-0 ml-2" />
-							</div>
-							<p class="text-xs text-gray-600 mb-2">{board.project_title || 'プロジェクト'}</p>
-							<div class="flex items-center gap-3 text-xs text-gray-600">
-								<span>{board.list_count || 0} リスト</span>
-								<span>•</span>
-								<span>{board.card_count || 0} カード</span>
-							</div>
-						</a>
-					{/each}
-				</div>
-			{:else}
-				<p class="text-gray-500 text-sm text-center py-8">ボードがありません</p>
-			{/if}
-		</div>
-	</aside>
-
-	<!-- 右カラム: ボード管理エリア -->
-	<div class="flex-1">
+<div class="p-6">
+	<!-- ボード管理エリア -->
+	<div class="max-w-7xl mx-auto">
 		<!-- ヘッダー -->
 		<div class="flex items-center justify-between mb-6">
 			<div>

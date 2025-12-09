@@ -297,8 +297,13 @@ export const actions: Actions = {
 
 			return { success: true, channelName: channel.snippet.title };
 		} catch (err) {
-			console.error('Add channel error:', err);
-			return fail(500, { error: 'Failed to add channel' });
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			console.error('=== Add channel error ===');
+			console.error('Error type:', err instanceof Error ? err.constructor.name : typeof err);
+			console.error('Error message:', errorMessage);
+			console.error('Full error:', err);
+			console.error('========================');
+			return fail(500, { error: `Failed to add channel: ${errorMessage}` });
 		}
 	},
 
@@ -574,6 +579,132 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('Fetch videos error:', err);
 			return fail(500, { error: 'Failed to fetch videos' });
+		}
+	},
+
+	testConnection: async ({ locals, platform, params }) => {
+		if (!locals.userId) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const db = getDB(platform);
+		const projectId = parseInt(params.projectId);
+
+		try {
+			const settings = await db
+				.prepare('SELECT api_key FROM youtube_settings WHERE project_id = ?')
+				.bind(projectId)
+				.first<{ api_key: string }>();
+
+			if (!settings?.api_key) {
+				return fail(400, { error: 'API key not configured' });
+			}
+
+			// Test the API key by fetching a public channel (YouTube's official channel)
+			const response = await fetch(
+				`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=UC_x5XG1OV2P6uZZ5FSM9Ttw&key=${settings.api_key}`
+			);
+			const result = await response.json();
+
+			if (!response.ok) {
+				console.error('YouTube API test error:', result);
+				const errorMsg = result.error?.message || 'API test failed';
+				return fail(500, { error: `Connection failed: ${errorMsg}` });
+			}
+
+			if (!result.items || result.items.length === 0) {
+				return fail(500, { error: 'Connection test failed: Unable to fetch data' });
+			}
+
+			return { success: true, message: 'API connection successful!' };
+		} catch (err) {
+			console.error('Test connection error:', err);
+			return fail(500, { error: 'Connection test failed' });
+		}
+	},
+
+	addChannelById: async ({ request, locals, platform, params }) => {
+		if (!locals.userId) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const db = getDB(platform);
+		const projectId = parseInt(params.projectId);
+		const data = await request.formData();
+		const channelId = data.get('channel_id')?.toString();
+		const channelName = data.get('channel_name')?.toString();
+		const channelHandle = data.get('channel_handle')?.toString();
+		const thumbnailUrl = data.get('thumbnail_url')?.toString();
+		const subscriberCount = parseInt(data.get('subscriber_count')?.toString() || '0');
+		const videoCount = parseInt(data.get('video_count')?.toString() || '0');
+		const viewCount = parseInt(data.get('view_count')?.toString() || '0');
+
+		if (!channelId || !channelName) {
+			return fail(400, { error: 'Channel ID and name are required' });
+		}
+
+		try {
+			const project = await db
+				.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?')
+				.bind(projectId, locals.userId)
+				.first();
+
+			if (!project) {
+				return fail(403, { error: 'Access denied' });
+			}
+
+			// Insert channel
+			await db
+				.prepare(`
+					INSERT INTO youtube_channels (user_id, project_id, channel_id, channel_handle, channel_name, thumbnail_url, updated_at)
+					VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+					ON CONFLICT(user_id, channel_id) DO UPDATE SET
+						channel_name = excluded.channel_name,
+						thumbnail_url = excluded.thumbnail_url,
+						project_id = excluded.project_id,
+						updated_at = CURRENT_TIMESTAMP
+				`)
+				.bind(
+					locals.userId,
+					projectId,
+					channelId,
+					channelHandle,
+					channelName,
+					thumbnailUrl
+				)
+				.run();
+
+			// Get the saved channel
+			const savedChannel = await db
+				.prepare('SELECT id FROM youtube_channels WHERE user_id = ? AND channel_id = ?')
+				.bind(locals.userId, channelId)
+				.first<{ id: number }>();
+
+			if (savedChannel) {
+				const today = new Date().toISOString().split('T')[0];
+				await db
+					.prepare(`
+						INSERT INTO youtube_stats (channel_id, subscriber_count, view_count, video_count, subscriber_change, view_change, recorded_date)
+						VALUES (?, ?, ?, ?, 0, 0, ?)
+						ON CONFLICT(channel_id, recorded_date) DO UPDATE SET
+							subscriber_count = excluded.subscriber_count,
+							view_count = excluded.view_count,
+							video_count = excluded.video_count
+					`)
+					.bind(
+						savedChannel.id,
+						subscriberCount,
+						viewCount,
+						videoCount,
+						today
+					)
+					.run();
+			}
+
+			return { success: true, channelName };
+		} catch (err) {
+			console.error('Add channel by ID error:', err);
+			return fail(500, { error: 'Failed to add channel' });
 		}
 	}
 };

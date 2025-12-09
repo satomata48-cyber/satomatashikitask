@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
-	import { ArrowLeft, LogOut, Target, LayoutGrid, FileText, Users, BarChart3 } from 'lucide-svelte';
+	import { ArrowLeft, LogOut, Target, LayoutGrid, FileText, Users, BarChart3, Send } from 'lucide-svelte';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -90,6 +90,24 @@
 						>
 							<Users size={20} />
 							<span class="text-sm font-medium">SNS管理</span>
+						</a>
+					</li>
+					<li>
+						<a
+							href="/dashboard/projects/{projectId}/analytics"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors {currentPath.includes('/analytics') ? 'bg-emerald-100 text-emerald-700' : 'text-gray-700 hover:bg-emerald-50'}"
+						>
+							<BarChart3 size={20} />
+							<span class="text-sm font-medium">SNS分析</span>
+						</a>
+					</li>
+					<li>
+						<a
+							href="/dashboard/projects/{projectId}/posts"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors {currentPath.includes('/posts') ? 'bg-sky-100 text-sky-700' : 'text-gray-700 hover:bg-sky-50'}"
+						>
+							<Send size={20} />
+							<span class="text-sm font-medium">SNS投稿</span>
 						</a>
 					</li>
 				</ul>
