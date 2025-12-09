@@ -41,6 +41,11 @@ function generateOAuthHeader(
 	const timestamp = Math.floor(Date.now() / 1000).toString();
 	const nonce = Math.random().toString(36).substring(2, 15);
 
+	// URLからベースURLとクエリパラメータを分離
+	const urlObj = new URL(url);
+	const baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+
+	// OAuthパラメータを作成
 	const oauthParams: Record<string, string> = {
 		oauth_consumer_key: settings.api_key,
 		oauth_token: settings.access_token,
@@ -50,10 +55,17 @@ function generateOAuthHeader(
 		oauth_version: '1.0'
 	};
 
+	// クエリパラメータをOAuthパラメータに追加（署名用）
+	const allParams: Record<string, string> = { ...oauthParams };
+	urlObj.searchParams.forEach((value, key) => {
+		allParams[key] = value;
+	});
+
+	// ベースURLと全パラメータで署名を生成
 	const signature = generateOAuthSignature(
 		method,
-		url,
-		oauthParams,
+		baseUrl,
+		allParams,
 		settings.api_secret,
 		settings.access_token_secret
 	);
@@ -364,6 +376,56 @@ export async function getUserStats(
 			followingCount: 0,
 			tweetCount: 0,
 			listedCount: 0,
+			error: err instanceof Error ? err.message : 'Unknown error'
+		};
+	}
+}
+
+// ユーザーのツイートを取得 (Twitter API v2を使用)
+export async function getUserTweets(
+	settings: TwitterSettings,
+	userId: string,
+	maxResults: number = 100
+): Promise<{
+	tweets: Array<{
+		id: string;
+		text: string;
+		created_at: string;
+	}>;
+	error?: string;
+}> {
+	try {
+		const url = `https://api.twitter.com/2/users/${userId}/tweets?max_results=${maxResults}&tweet.fields=created_at`;
+		const authHeader = generateOAuthHeader('GET', url, settings);
+
+		const response = await fetch(url, {
+			method: 'GET',
+			headers: {
+				Authorization: authHeader
+			}
+		});
+
+		const result = (await response.json()) as any;
+
+		if (!response.ok) {
+			console.error('Twitter API error:', result);
+			return {
+				tweets: [],
+				error: result.detail || result.error?.message || `API Error: ${response.status}`
+			};
+		}
+
+		const tweets = (result.data || []).map((tweet: any) => ({
+			id: tweet.id,
+			text: tweet.text,
+			created_at: tweet.created_at
+		}));
+
+		return { tweets };
+	} catch (err) {
+		console.error('Get user tweets error:', err);
+		return {
+			tweets: [],
 			error: err instanceof Error ? err.message : 'Unknown error'
 		};
 	}

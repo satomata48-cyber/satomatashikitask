@@ -18,3 +18,17 @@ preview_database_id = "DB"
 binding = "BUCKET"
 bucket_name = "satomatashikitask-files"
 
+# Twitter Auto-Posting Cron Worker
+# Runs every 5 hours: 0:00, 5:00, 10:00, 15:00, 20:00 UTC
+[[workers]]
+name = "twitter-cron"
+main = "src/workers/twitter-cron.ts"
+
+[[workers.triggers]]
+crons = ["0 */5 * * *"]
+
+[[workers.bindings]]
+type = "d1"
+name = "DB"
+database_id = "09e33ed1-71a8-4791-b749-d70a0675eb9f"
+
