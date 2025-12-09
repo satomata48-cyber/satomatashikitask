@@ -3,6 +3,9 @@ compatibility_date = "2024-11-19"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".svelte-kit/cloudflare"
 
+[build]
+command = "npm run build"
+
 # D1 Database
 # データベース管理については DATABASE_GUIDE.md を参照
 # マイグレーション: npm run db:migrate:safe (ローカル), wrangler d1 migrations apply satomatashikitask-db --remote (本番)
