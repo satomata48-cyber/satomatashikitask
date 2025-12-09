@@ -221,7 +221,7 @@
 				{/if}
 
 				<div class="flex gap-2">
-					<form method="POST" action="?/updateStats" use:enhance={() => {
+					<form method="POST" action="?/fetchStats" use:enhance={() => {
 						updatingStats = true;
 						return async ({ result }) => {
 							updatingStats = false;

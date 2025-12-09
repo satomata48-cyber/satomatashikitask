@@ -369,7 +369,7 @@ export const actions: Actions = {
 		}
 	},
 
-	updateStats: async ({ locals, platform, params }) => {
+	fetchStats: async ({ locals, platform, params }) => {
 		if (!locals.userId) {
 			return fail(401, { error: '認証が必要です' });
 		}
