@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
-	import { Twitter, Save, X, Check, Users, MessageSquare, Send, Key, Link, RefreshCw, TrendingUp, Download } from 'lucide-svelte';
+	import { Twitter, Save, X, Check, Users, MessageSquare, Send, Key, Link, RefreshCw, TrendingUp, Download, Upload } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
@@ -29,11 +29,31 @@
 <div class="p-6 max-w-4xl mx-auto space-y-6">
 	<!-- ヘッダー -->
 	<div class="mb-6">
-		<h2 class="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-			<Twitter size={28} class="text-sky-600" />
-			Twitter/X 設定
-		</h2>
-		<p class="text-gray-600">アカウント情報と統計を管理</p>
+		<div class="flex items-center justify-between">
+			<div>
+				<h2 class="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+					<Twitter size={28} class="text-sky-600" />
+					Twitter/X 設定
+				</h2>
+				<p class="text-gray-600">アカウント情報と統計を管理</p>
+			</div>
+			<div class="flex gap-2">
+				<a
+					href="/dashboard/projects/{data.project.id}/twitter/stats"
+					class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+				>
+					<TrendingUp size={18} />
+					詳細統計
+				</a>
+				<a
+					href="/dashboard/projects/{data.project.id}/twitter/import"
+					class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+				>
+					<Upload size={18} />
+					CSVインポート
+				</a>
+			</div>
+		</div>
 	</div>
 
 	<!-- API認証設定 -->

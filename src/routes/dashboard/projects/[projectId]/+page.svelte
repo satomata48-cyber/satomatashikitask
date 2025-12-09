@@ -477,7 +477,7 @@
 						<Youtube size={20} class="text-red-600" />
 						<h2 class="font-semibold text-gray-800">YouTube統計</h2>
 					</div>
-					<a href="/dashboard/projects/{data.project.id}/youtube" class="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
+					<a href="/dashboard/projects/{data.project.id}/analytics" class="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
 						<TrendingUp size={16} />
 						詳細分析
 					</a>
@@ -485,7 +485,7 @@
 
 				<div class="p-4">
 					{#each data.youtubeData.channels as channel}
-						<a href="/dashboard/projects/{data.project.id}/youtube" class="block hover:bg-gray-50 rounded-xl transition-colors p-4 border border-gray-100 mb-4 last:mb-0">
+						<a href="/dashboard/projects/{data.project.id}/analytics" class="block hover:bg-gray-50 rounded-xl transition-colors p-4 border border-gray-100 mb-4 last:mb-0">
 							<!-- チャンネル情報ヘッダー -->
 							<div class="flex items-center gap-4 mb-4">
 								{#if channel.thumbnail_url}
@@ -604,7 +604,7 @@
 					<Youtube size={48} class="mx-auto text-gray-300 mb-4" />
 					<p class="text-gray-600 mb-2">YouTubeチャンネルの統計を追跡しましょう</p>
 					<p class="text-sm text-gray-400 mb-4">登録者数・再生回数・動画パフォーマンスを自動取得</p>
-					<a href="/dashboard/projects/{data.project.id}/youtube" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+					<a href="/dashboard/projects/{data.project.id}/analytics" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
 						<Settings size={16} />
 						設定する
 					</a>
@@ -1052,7 +1052,7 @@
 										<Youtube size={20} class="text-red-600" />
 										<span class="font-medium text-red-800">YouTube</span>
 									</div>
-									<a href="/dashboard/projects/{data.project.id}/youtube" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-1">
+									<a href="/dashboard/projects/{data.project.id}/analytics" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-1">
 										分析 <ExternalLink size={14} />
 									</a>
 								</div>
@@ -1149,7 +1149,7 @@
 							<Youtube size={20} class="text-red-600" />
 							<span class="font-medium text-red-800">YouTube</span>
 						</div>
-						<a href="/dashboard/projects/{data.project.id}/youtube" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-1">
+						<a href="/dashboard/projects/{data.project.id}/analytics" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-1">
 							分析 <ExternalLink size={14} />
 						</a>
 					</div>

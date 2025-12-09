@@ -86,7 +86,7 @@
 					<li>
 						<a
 							href="/dashboard/projects/{projectId}/sns"
-							class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors {currentPath.includes('/sns') || currentPath.includes('/youtube') || currentPath.includes('/instagram') ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-pink-50'}"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors {currentPath.includes('/sns') || currentPath.includes('/instagram') || currentPath.includes('/twitter') || currentPath.includes('/tiktok') ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-pink-50'}"
 						>
 							<Users size={20} />
 							<span class="text-sm font-medium">SNS管理</span>

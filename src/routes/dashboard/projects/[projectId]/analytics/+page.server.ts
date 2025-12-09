@@ -24,56 +24,76 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		}
 
 		// Twitter統計を取得（直近90日分）
-		const twitterStats = await db
-			.prepare(`
-				SELECT ts.*, ta.username, ta.display_name
-				FROM twitter_stats ts
-				INNER JOIN twitter_accounts ta ON ts.account_id = ta.id
-				WHERE ta.project_id = ?
-				ORDER BY ts.recorded_date DESC
-				LIMIT 90
-			`)
-			.bind(projectId)
-			.all();
+		let twitterStats = { results: [] };
+		try {
+			twitterStats = await db
+				.prepare(`
+					SELECT ts.*, ta.username, ta.display_name
+					FROM twitter_stats ts
+					INNER JOIN twitter_accounts ta ON ts.account_id = ta.id
+					WHERE ta.project_id = ?
+					ORDER BY ts.recorded_date DESC
+					LIMIT 90
+				`)
+				.bind(projectId)
+				.all();
+		} catch {
+			// Table may not exist
+		}
 
 		// Instagram統計を取得（直近90日分）
-		const instagramStats = await db
-			.prepare(`
-				SELECT ist.*, ia.username, ia.display_name
-				FROM instagram_stats ist
-				INNER JOIN instagram_accounts ia ON ist.account_id = ia.id
-				WHERE ia.project_id = ?
-				ORDER BY ist.recorded_date DESC
-				LIMIT 90
-			`)
-			.bind(projectId)
-			.all();
+		let instagramStats = { results: [] };
+		try {
+			instagramStats = await db
+				.prepare(`
+					SELECT ist.*, ia.username, ia.display_name
+					FROM instagram_stats ist
+					INNER JOIN instagram_accounts ia ON ist.account_id = ia.id
+					WHERE ia.project_id = ?
+					ORDER BY ist.recorded_date DESC
+					LIMIT 90
+				`)
+				.bind(projectId)
+				.all();
+		} catch {
+			// Table may not exist
+		}
 
 		// TikTok統計を取得（直近90日分）
-		const tiktokStats = await db
-			.prepare(`
-				SELECT ts.*, ta.username, ta.display_name
-				FROM tiktok_stats ts
-				INNER JOIN tiktok_accounts ta ON ts.account_id = ta.id
-				WHERE ta.project_id = ?
-				ORDER BY ts.recorded_date DESC
-				LIMIT 90
-			`)
-			.bind(projectId)
-			.all();
+		let tiktokStats = { results: [] };
+		try {
+			tiktokStats = await db
+				.prepare(`
+					SELECT ts.*, ta.username, ta.display_name
+					FROM tiktok_stats ts
+					INNER JOIN tiktok_accounts ta ON ts.account_id = ta.id
+					WHERE ta.project_id = ?
+					ORDER BY ts.recorded_date DESC
+					LIMIT 90
+				`)
+				.bind(projectId)
+				.all();
+		} catch {
+			// Table may not exist
+		}
 
 		// YouTube統計を取得（直近90日分）
-		const youtubeStats = await db
-			.prepare(`
-				SELECT ys.*, yc.channel_title, yc.channel_id
-				FROM youtube_stats ys
-				INNER JOIN youtube_channels yc ON ys.channel_id = yc.id
-				WHERE yc.project_id = ?
-				ORDER BY ys.recorded_date DESC
-				LIMIT 90
-			`)
-			.bind(projectId)
-			.all();
+		let youtubeStats = { results: [] };
+		try {
+			youtubeStats = await db
+				.prepare(`
+					SELECT ys.*, yc.channel_title, yc.channel_id
+					FROM youtube_stats ys
+					INNER JOIN youtube_channels yc ON ys.channel_id = yc.id
+					WHERE yc.project_id = ?
+					ORDER BY ys.recorded_date DESC
+					LIMIT 90
+				`)
+				.bind(projectId)
+				.all();
+		} catch {
+			// Table may not exist
+		}
 
 		// YouTube API設定を取得
 		let youtubeSettings: any = null;
@@ -146,63 +166,105 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		}
 
 		// 各SNSの最新統計を取得
-		const twitterLatest = await db
-			.prepare(`
-				SELECT ts.*, ta.username, ta.display_name
-				FROM twitter_stats ts
-				INNER JOIN twitter_accounts ta ON ts.account_id = ta.id
-				WHERE ta.project_id = ?
-				ORDER BY ts.recorded_date DESC
-				LIMIT 1
-			`)
-			.bind(projectId)
-			.first();
+		let twitterLatest = null;
+		let instagramLatest = null;
+		let tiktokLatest = null;
+		let youtubeLatest = null;
 
-		const instagramLatest = await db
-			.prepare(`
-				SELECT ist.*, ia.username, ia.display_name
-				FROM instagram_stats ist
-				INNER JOIN instagram_accounts ia ON ist.account_id = ia.id
-				WHERE ia.project_id = ?
-				ORDER BY ist.recorded_date DESC
-				LIMIT 1
-			`)
-			.bind(projectId)
-			.first();
+		try {
+			twitterLatest = await db
+				.prepare(`
+					SELECT ts.*, ta.username, ta.display_name
+					FROM twitter_stats ts
+					INNER JOIN twitter_accounts ta ON ts.account_id = ta.id
+					WHERE ta.project_id = ?
+					ORDER BY ts.recorded_date DESC
+					LIMIT 1
+				`)
+				.bind(projectId)
+				.first();
+		} catch {
+			// Table may not exist
+		}
 
-		const tiktokLatest = await db
-			.prepare(`
-				SELECT ts.*, ta.username, ta.display_name
-				FROM tiktok_stats ts
-				INNER JOIN tiktok_accounts ta ON ts.account_id = ta.id
-				WHERE ta.project_id = ?
-				ORDER BY ts.recorded_date DESC
-				LIMIT 1
-			`)
-			.bind(projectId)
-			.first();
+		try {
+			instagramLatest = await db
+				.prepare(`
+					SELECT ist.*, ia.username, ia.display_name
+					FROM instagram_stats ist
+					INNER JOIN instagram_accounts ia ON ist.account_id = ia.id
+					WHERE ia.project_id = ?
+					ORDER BY ist.recorded_date DESC
+					LIMIT 1
+				`)
+				.bind(projectId)
+				.first();
+		} catch {
+			// Table may not exist
+		}
 
-		const youtubeLatest = await db
-			.prepare(`
-				SELECT ys.*, yc.channel_title, yc.channel_id
-				FROM youtube_stats ys
-				INNER JOIN youtube_channels yc ON ys.channel_id = yc.id
-				WHERE yc.project_id = ?
-				ORDER BY ys.recorded_date DESC
-				LIMIT 1
-			`)
-			.bind(projectId)
-			.first();
+		try {
+			tiktokLatest = await db
+				.prepare(`
+					SELECT ts.*, ta.username, ta.display_name
+					FROM tiktok_stats ts
+					INNER JOIN tiktok_accounts ta ON ts.account_id = ta.id
+					WHERE ta.project_id = ?
+					ORDER BY ts.recorded_date DESC
+					LIMIT 1
+				`)
+				.bind(projectId)
+				.first();
+		} catch {
+			// Table may not exist
+		}
+
+		try {
+			youtubeLatest = await db
+				.prepare(`
+					SELECT ys.*, yc.channel_title, yc.channel_id
+					FROM youtube_stats ys
+					INNER JOIN youtube_channels yc ON ys.channel_id = yc.id
+					WHERE yc.project_id = ?
+					ORDER BY ys.recorded_date DESC
+					LIMIT 1
+				`)
+				.bind(projectId)
+				.first();
+		} catch {
+			// Table may not exist
+		}
 
 		// Twitter投稿頻度分析
 		let twitterPostFrequency = null;
+		let twitterPosts: Array<any> = [];
 		try {
 			const twitterAccount = await db
-				.prepare('SELECT id FROM twitter_accounts WHERE project_id = ?')
+				.prepare('SELECT id, username FROM twitter_accounts WHERE project_id = ?')
 				.bind(projectId)
-				.first<{ id: number }>();
+				.first<{ id: number; username: string }>();
 
 			if (twitterAccount) {
+				// 投稿履歴を取得（最新50件）
+				const recentPostsResult = await db
+					.prepare(`
+						SELECT
+							tweet_id, content, posted_at,
+							like_count, retweet_count, reply_count, quote_count, impression_count
+						FROM twitter_posts
+						WHERE account_id = ?
+						ORDER BY posted_at DESC
+						LIMIT 50
+					`)
+					.bind(twitterAccount.id)
+					.all();
+
+				twitterPosts = (recentPostsResult.results || []).map((post: any) => ({
+					...post,
+					username: twitterAccount.username
+				}));
+
+				// 投稿頻度分析用に全投稿の日付を取得
 				const allPostsResult = await db
 					.prepare('SELECT posted_at FROM twitter_posts WHERE account_id = ? ORDER BY posted_at DESC')
 					.bind(twitterAccount.id)
@@ -309,7 +371,8 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 			twitter: {
 				stats: twitterStats.results || [],
 				latest: twitterLatest,
-				postFrequency: twitterPostFrequency
+				postFrequency: twitterPostFrequency,
+				posts: twitterPosts
 			},
 			instagram: {
 				stats: instagramStats.results || [],
@@ -885,12 +948,47 @@ export const actions: Actions = {
 				if (!existing) {
 					await db
 						.prepare(`
-							INSERT INTO twitter_posts (account_id, tweet_id, content, posted_at, created_at)
-							VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+							INSERT INTO twitter_posts (
+								account_id, tweet_id, content, posted_at,
+								like_count, retweet_count, reply_count, quote_count, impression_count,
+								created_at
+							)
+							VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 						`)
-						.bind(account.id, tweet.id, tweet.text, tweet.created_at)
+						.bind(
+							account.id,
+							tweet.id,
+							tweet.text,
+							tweet.created_at,
+							tweet.like_count,
+							tweet.retweet_count,
+							tweet.reply_count,
+							tweet.quote_count,
+							tweet.impression_count
+						)
 						.run();
 					savedCount++;
+				} else {
+					// 既存のツイートのエンゲージメント指標を更新
+					await db
+						.prepare(`
+							UPDATE twitter_posts
+							SET like_count = ?,
+								retweet_count = ?,
+								reply_count = ?,
+								quote_count = ?,
+								impression_count = ?
+							WHERE id = ?
+						`)
+						.bind(
+							tweet.like_count,
+							tweet.retweet_count,
+							tweet.reply_count,
+							tweet.quote_count,
+							tweet.impression_count,
+							existing.id
+						)
+						.run();
 				}
 			}
 

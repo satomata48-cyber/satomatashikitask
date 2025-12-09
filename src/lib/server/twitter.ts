@@ -391,11 +391,16 @@ export async function getUserTweets(
 		id: string;
 		text: string;
 		created_at: string;
+		like_count: number;
+		retweet_count: number;
+		reply_count: number;
+		quote_count: number;
+		impression_count: number;
 	}>;
 	error?: string;
 }> {
 	try {
-		const url = `https://api.twitter.com/2/users/${userId}/tweets?max_results=${maxResults}&tweet.fields=created_at`;
+		const url = `https://api.twitter.com/2/users/${userId}/tweets?max_results=${maxResults}&tweet.fields=created_at,public_metrics`;
 		const authHeader = generateOAuthHeader('GET', url, settings);
 
 		const response = await fetch(url, {
@@ -418,7 +423,12 @@ export async function getUserTweets(
 		const tweets = (result.data || []).map((tweet: any) => ({
 			id: tweet.id,
 			text: tweet.text,
-			created_at: tweet.created_at
+			created_at: tweet.created_at,
+			like_count: tweet.public_metrics?.like_count || 0,
+			retweet_count: tweet.public_metrics?.retweet_count || 0,
+			reply_count: tweet.public_metrics?.reply_count || 0,
+			quote_count: tweet.public_metrics?.quote_count || 0,
+			impression_count: tweet.public_metrics?.impression_count || 0
 		}));
 
 		return { tweets };

@@ -1,8 +1,34 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { Users, Youtube, Instagram, ExternalLink, TrendingUp, Eye, ThumbsUp, Video, Twitter, Music } from 'lucide-svelte';
+	import type { PageData, ActionData } from './$types';
+	import { enhance } from '$app/forms';
+	import { Users, Youtube, Instagram, ExternalLink, TrendingUp, Eye, ThumbsUp, Video, Twitter, Music, Settings, Key, Save, Facebook, MessageCircle } from 'lucide-svelte';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let showEditSettings = $state(false);
+	let isSubmitting = $state(false);
+	let isFetching = $state(false);
+
+	function handleFormSubmit() {
+		return ({ update, result }: any) => {
+			isSubmitting = true;
+			update().then(() => {
+				isSubmitting = false;
+				if (result.type === 'success' && result.data?.success) {
+					showEditSettings = false;
+				}
+			});
+		};
+	}
+
+	function handleFetchData() {
+		return ({ update }: any) => {
+			isFetching = true;
+			update().then(() => {
+				isFetching = false;
+			});
+		};
+	}
 </script>
 
 <svelte:head>
@@ -17,6 +43,126 @@
 			SNS管理
 		</h2>
 		<p class="text-gray-600">SNSアカウントの統計と分析</p>
+	</div>
+
+	<!-- Meta API設定 (Facebook/Instagram/Threads) -->
+	<div class="bg-white rounded-xl shadow-md p-6 mb-6">
+		<h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+			<Key size={20} class="text-blue-600" />
+			Meta API 認証設定 (Facebook/Instagram/Threads)
+		</h3>
+
+		{#if form?.success}
+			<div class="mb-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+				<p class="text-sm text-emerald-700">{form.message}</p>
+			</div>
+		{:else if form?.error}
+			<div class="mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
+				<p class="text-sm text-red-700">{form.error}</p>
+			</div>
+		{/if}
+
+		{#if data.metaSettings?.hasSettings && !showEditSettings}
+			<div class="space-y-4">
+				<div class="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+					<p class="text-sm text-emerald-700 mb-2">✓ API認証設定済み</p>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
+						<div>App ID: ****{data.metaSettings.app_id_last4}</div>
+						<div>ステータス: {data.metaSettings.enabled ? '有効' : '無効'}</div>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					<button
+						onclick={() => showEditSettings = true}
+						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+					>
+						編集
+					</button>
+					<form method="POST" action="?/fetchMetaData" use:enhance={handleFetchData}>
+						<button
+							type="submit"
+							disabled={isFetching}
+							class="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm disabled:opacity-50"
+						>
+							{isFetching ? 'データ取得中...' : 'データを取得'}
+						</button>
+					</form>
+				</div>
+			</div>
+		{:else}
+			<form method="POST" action="?/saveMetaSettings" use:enhance={handleFormSubmit} class="space-y-4">
+				<div class="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+					<p class="text-sm text-blue-700 mb-2">
+						<strong>Facebook Developersでの設定:</strong>
+					</p>
+					<ol class="text-xs text-blue-600 space-y-1 list-decimal list-inside">
+						<li>Facebook Developers (<a href="https://developers.facebook.com" target="_blank" class="underline">https://developers.facebook.com</a>) にアクセス</li>
+						<li>アプリのダッシュボードで「App ID」と「App Secret」を取得</li>
+						<li>Graph API Explorer (<a href="https://developers.facebook.com/tools/explorer" target="_blank" class="underline">https://developers.facebook.com/tools/explorer</a>) でUser Access Tokenを生成</li>
+						<li>必要な権限: pages_show_list, pages_read_engagement, instagram_basic, instagram_manage_insights, threads_basic, threads_read_replies</li>
+					</ol>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">
+							App ID <span class="text-red-500">*</span>
+						</label>
+						<input
+							type="text"
+							name="app_id"
+							required
+							placeholder="1234567890123456"
+							class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">
+							App Secret <span class="text-red-500">*</span>
+						</label>
+						<input
+							type="password"
+							name="app_secret"
+							required
+							placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+							class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">
+						User Access Token <span class="text-red-500">*</span>
+					</label>
+					<textarea
+						name="access_token"
+						required
+						placeholder="EAAxxxxxxxxxxxxxx..."
+						rows="3"
+						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-xs"
+					></textarea>
+					<p class="text-xs text-gray-500 mt-1">Graph API Explorerで生成したUser Access Tokenを貼り付けてください</p>
+				</div>
+				<div class="flex gap-2">
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+					>
+						<Save size={18} />
+						{isSubmitting ? '保存中...' : '保存'}
+					</button>
+					{#if data.metaSettings?.hasSettings}
+						<button
+							type="button"
+							onclick={() => showEditSettings = false}
+							class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+						>
+							キャンセル
+						</button>
+					{/if}
+				</div>
+			</form>
+		{/if}
 	</div>
 
 	<!-- SNS連携カード -->
@@ -63,7 +209,7 @@
 					</div>
 				</div>
 				<a
-					href="/dashboard/projects/{data.project.id}/youtube"
+					href="/dashboard/projects/{data.project.id}/analytics"
 					class="flex items-center justify-center gap-2 w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
 				>
 					<ExternalLink size={14} />
@@ -73,7 +219,7 @@
 				<div class="text-center py-6">
 					<p class="text-sm text-gray-600 mb-4">YouTubeチャンネルを連携して統計を取得しましょう</p>
 					<a
-						href="/dashboard/projects/{data.project.id}/youtube"
+						href="/dashboard/projects/{data.project.id}/analytics"
 						class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
 					>
 						<Youtube size={16} />
@@ -83,7 +229,7 @@
 			{/if}
 		</div>
 
-		<!-- Instagram -->
+		<!-- Instagram (Meta API) -->
 		<div class="bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl shadow-md p-6 border border-pink-200">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
@@ -92,7 +238,7 @@
 					</div>
 					<h3 class="font-semibold text-gray-800">Instagram</h3>
 				</div>
-				{#if data.instagramAccount}
+				{#if data.instagramBusinessAccount || data.instagramAccount}
 					<span class="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full">
 						連携済み
 					</span>
@@ -103,7 +249,31 @@
 				{/if}
 			</div>
 
-			{#if data.instagramAccount}
+			{#if data.instagramBusinessAccount}
+				<!-- Meta API経由のデータ -->
+				<div class="space-y-3 mb-4">
+					<div>
+						<p class="text-xs text-gray-600 mb-1">アカウント名</p>
+						<p class="font-semibold text-gray-800">@{data.instagramBusinessAccount.username}</p>
+					</div>
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<p class="text-xs text-gray-600 mb-1">フォロワー数</p>
+							<p class="text-lg font-bold text-gray-800">{data.instagramBusinessAccount.followers_count?.toLocaleString() || 0}</p>
+						</div>
+						<div>
+							<p class="text-xs text-gray-600 mb-1">投稿数</p>
+							<p class="text-lg font-bold text-gray-800">{data.instagramBusinessAccount.media_count?.toLocaleString() || 0}</p>
+						</div>
+					</div>
+					<div class="text-xs text-blue-600">
+						<a href="https://www.instagram.com/{data.instagramBusinessAccount.username}" target="_blank" class="underline">
+							Instagramで見る
+						</a>
+					</div>
+				</div>
+			{:else if data.instagramAccount}
+				<!-- 既存のデータ -->
 				<div class="space-y-3 mb-4">
 					<div>
 						<p class="text-xs text-gray-600 mb-1">アカウント名</p>
@@ -120,23 +290,93 @@
 						</div>
 					</div>
 				</div>
-				<a
-					href="/dashboard/projects/{data.project.id}/instagram"
-					class="flex items-center justify-center gap-2 w-full px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm font-medium"
-				>
-					<ExternalLink size={14} />
-					詳細分析を見る
-				</a>
 			{:else}
 				<div class="text-center py-6">
-					<p class="text-sm text-gray-600 mb-4">Instagramアカウントを連携して統計を取得しましょう</p>
-					<a
-						href="/dashboard/projects/{data.project.id}/instagram"
-						class="inline-flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm"
-					>
-						<Instagram size={16} />
-						連携する
-					</a>
+					<p class="text-sm text-gray-600 mb-4">Meta APIでInstagramを連携しましょう</p>
+					<p class="text-xs text-gray-500">上部の「Meta API 認証設定」からデータを取得</p>
+				</div>
+			{/if}
+		</div>
+
+		<!-- Facebook Page -->
+		<div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md p-6 border border-blue-200">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<div class="p-2 bg-blue-100 rounded-lg">
+						<Facebook size={24} class="text-blue-600" />
+					</div>
+					<h3 class="font-semibold text-gray-800">Facebook</h3>
+				</div>
+				{#if data.facebookPage}
+					<span class="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full">
+						連携済み
+					</span>
+				{:else}
+					<span class="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 border border-gray-300 rounded-full">
+						未連携
+					</span>
+				{/if}
+			</div>
+
+			{#if data.facebookPage}
+				<div class="space-y-3 mb-4">
+					<div>
+						<p class="text-xs text-gray-600 mb-1">ページ名</p>
+						<p class="font-semibold text-gray-800">{data.facebookPage.page_name}</p>
+					</div>
+					{#if data.facebookPage.category}
+						<div>
+							<p class="text-xs text-gray-600 mb-1">カテゴリ</p>
+							<p class="text-sm text-gray-700">{data.facebookPage.category}</p>
+						</div>
+					{/if}
+					<div>
+						<p class="text-xs text-gray-600 mb-1">フォロワー数</p>
+						<p class="text-lg font-bold text-gray-800">{data.facebookPage.followers_count?.toLocaleString() || 0}</p>
+					</div>
+					<div class="text-xs text-blue-600">
+						<a href="https://www.facebook.com/{data.facebookPage.page_id}" target="_blank" class="underline">
+							Facebookで見る
+						</a>
+					</div>
+				</div>
+			{:else}
+				<div class="text-center py-6">
+					<p class="text-sm text-gray-600 mb-4">Meta APIでFacebookページを連携しましょう</p>
+					<p class="text-xs text-gray-500">上部の「Meta API 認証設定」からデータを取得</p>
+				</div>
+			{/if}
+		</div>
+
+		<!-- Threads -->
+		<div class="bg-gradient-to-br from-slate-50 to-zinc-50 rounded-xl shadow-md p-6 border border-slate-200">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<div class="p-2 bg-slate-100 rounded-lg">
+						<MessageCircle size={24} class="text-slate-600" />
+					</div>
+					<h3 class="font-semibold text-gray-800">Threads</h3>
+				</div>
+				{#if data.metaSettings?.hasSettings}
+					<span class="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full">
+						連携済み
+					</span>
+				{:else}
+					<span class="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 border border-gray-300 rounded-full">
+						未連携
+					</span>
+				{/if}
+			</div>
+
+			{#if data.metaSettings?.hasSettings}
+				<div class="text-center py-6">
+					<p class="text-sm text-gray-600 mb-2">Threads投稿を取得できます</p>
+					<p class="text-xs text-gray-500">「データを取得」ボタンで最新の投稿を取得</p>
+				</div>
+			{:else}
+				<div class="text-center py-6">
+					<p class="text-sm text-gray-600 mb-4">Meta APIでThreadsを連携しましょう</p>
+					<p class="text-xs text-gray-500">上部の「Meta API 認証設定」からデータを取得</p>
 				</div>
 			{/if}
 		</div>
@@ -322,7 +562,7 @@
 		<h3 class="text-lg font-semibold text-gray-800 mb-4">クイックアクション</h3>
 		<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
 			<a
-				href="/dashboard/projects/{data.project.id}/youtube"
+				href="/dashboard/projects/{data.project.id}/analytics"
 				class="p-4 bg-red-50 rounded-lg border border-red-200 hover:border-red-400 hover:shadow-sm transition-all text-center"
 			>
 				<Youtube size={24} class="mx-auto text-red-600 mb-2" />

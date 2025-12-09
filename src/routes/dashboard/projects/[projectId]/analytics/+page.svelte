@@ -585,6 +585,70 @@
 						</div>
 					{/if}
 
+					<!-- 投稿履歴 -->
+					{#if data.twitter.posts && data.twitter.posts.length > 0}
+						<div class="bg-white rounded-xl shadow-md p-6">
+							<h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+								<MessageCircle size={20} class="text-sky-600" />
+								投稿履歴（最新50件）
+							</h3>
+							<div class="space-y-3 max-h-96 overflow-y-auto">
+								{#each data.twitter.posts as post}
+									<div class="p-4 border border-gray-200 rounded-lg hover:border-sky-300 transition-colors">
+										<div class="flex items-center justify-between gap-2 mb-2">
+											<div class="flex items-center gap-2">
+												<span class="text-sm text-gray-600">{formatDate(post.posted_at)}</span>
+												{#if post.tweet_id && post.username}
+													<a
+														href="https://twitter.com/{post.username}/status/{post.tweet_id}"
+														target="_blank"
+														rel="noopener noreferrer"
+														class="text-xs text-sky-600 hover:underline"
+													>
+														Twitterで表示
+													</a>
+												{/if}
+											</div>
+											<div class="flex items-center gap-3 text-xs text-gray-600">
+												{#if post.impression_count > 0}
+													<span title="閲覧数" class="flex items-center gap-1">
+														<Eye size={14} />
+														{formatNumber(post.impression_count)}
+													</span>
+												{/if}
+												{#if post.like_count > 0}
+													<span title="いいね" class="flex items-center gap-1">
+														<Heart size={14} class="text-red-500" />
+														{formatNumber(post.like_count)}
+													</span>
+												{/if}
+												{#if post.retweet_count > 0}
+													<span title="リツイート" class="flex items-center gap-1">
+														<RefreshCw size={14} class="text-green-500" />
+														{formatNumber(post.retweet_count)}
+													</span>
+												{/if}
+												{#if post.reply_count > 0}
+													<span title="リプライ" class="flex items-center gap-1">
+														<MessageCircle size={14} class="text-blue-500" />
+														{formatNumber(post.reply_count)}
+													</span>
+												{/if}
+												{#if post.quote_count > 0}
+													<span title="引用" class="flex items-center gap-1">
+														<MessageCircle size={14} class="text-purple-500" />
+														{formatNumber(post.quote_count)}
+													</span>
+												{/if}
+											</div>
+										</div>
+										<p class="text-gray-800">{post.content}</p>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
 					<!-- コントロールバー -->
 					<div class="bg-white rounded-xl shadow-md p-4">
 						<div class="flex items-center justify-between flex-wrap gap-4">

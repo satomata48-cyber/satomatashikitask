@@ -191,7 +191,7 @@
 				<p class="text-sm font-medium text-gray-800">SNS管理</p>
 			</a>
 			<a
-				href="/dashboard/projects/{data.project.id}/youtube"
+				href="/dashboard/projects/{data.project.id}/analytics"
 				class="p-4 bg-red-50 rounded-lg border border-red-200 hover:border-red-400 hover:shadow-sm transition-all text-center"
 			>
 				<TrendingUp size={24} class="mx-auto text-red-600 mb-2" />
