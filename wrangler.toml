@@ -3,10 +3,6 @@ compatibility_date = "2024-11-19"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".svelte-kit/cloudflare"
 
-# Cloudflare Pages Build Settings
-[build]
-command = "npm run build"
-
 # D1 Database
 # データベース管理については DATABASE_GUIDE.md を参照
 # マイグレーション: npm run db:migrate:safe (ローカル), wrangler d1 migrations apply satomatashikitask-db --remote (本番)
@@ -22,17 +18,17 @@ preview_database_id = "DB"
 binding = "BUCKET"
 bucket_name = "satomatashikitask-files"
 
-# Twitter Auto-Posting Cron Worker
+# Twitter Auto-Posting Cron Worker (separate worker deployment)
 # Runs every 5 hours: 0:00, 5:00, 10:00, 15:00, 20:00 UTC
-[[workers]]
-name = "twitter-cron"
-main = "src/workers/twitter-cron.ts"
-
-[[workers.triggers]]
-crons = ["0 */5 * * *"]
-
-[[workers.bindings]]
-type = "d1"
-name = "DB"
-database_id = "09e33ed1-71a8-4791-b749-d70a0675eb9f"
+# Note: Workers configuration is not supported in Pages wrangler.toml
+# Deploy this worker separately using: wrangler deploy src/workers/twitter-cron.ts --name twitter-cron
+# [[workers]]
+# name = "twitter-cron"
+# main = "src/workers/twitter-cron.ts"
+# [[workers.triggers]]
+# crons = ["0 */5 * * *"]
+# [[workers.bindings]]
+# type = "d1"
+# name = "DB"
+# database_id = "09e33ed1-71a8-4791-b749-d70a0675eb9f"
 
