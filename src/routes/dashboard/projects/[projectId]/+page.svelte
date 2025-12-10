@@ -32,12 +32,16 @@
 		Pencil,
 		Instagram,
 		Facebook,
-		Send
+		Send,
+		Menu
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Mobile sidebar state
+	let sidebarOpen = $state(false);
 
 	function handleFormSubmit() {
 		return async ({ result }: { result: { type: string } }) => {
@@ -137,28 +141,43 @@
 </svelte:head>
 
 <div class="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
+	<!-- Mobile Sidebar Overlay -->
+	{#if sidebarOpen}
+		<div
+			class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+			onclick={() => (sidebarOpen = false)}
+		></div>
+	{/if}
+
 	<!-- Header -->
-	<header class="bg-white shadow-sm">
-		<div class="px-6 py-4 flex items-center justify-between">
-			<div class="flex items-center gap-3">
+	<header class="bg-white shadow-sm sticky top-0 z-30">
+		<div class="px-3 md:px-6 py-3 md:py-4 flex items-center justify-between">
+			<div class="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+				<button
+					onclick={() => (sidebarOpen = true)}
+					class="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+					title="メニューを開く"
+				>
+					<Menu size={20} class="text-gray-600" />
+				</button>
 				<a href="/dashboard" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="ダッシュボードへ戻る">
 					<ArrowLeft size={20} class="text-gray-600" />
 				</a>
-				<div class="w-3 h-3 rounded-full" style="background-color: {data.project.color}"></div>
-				<h1 class="text-xl md:text-2xl font-bold text-gray-800">{data.project.title}</h1>
-				<span class="px-2 py-0.5 text-xs rounded-full {data.project.status === 'active' ? 'bg-green-100 text-green-700' : data.project.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">
+				<div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: {data.project.color}"></div>
+				<h1 class="text-base md:text-xl lg:text-2xl font-bold text-gray-800 truncate">{data.project.title}</h1>
+				<span class="px-2 py-0.5 text-xs rounded-full flex-shrink-0 hidden sm:inline {data.project.status === 'active' ? 'bg-green-100 text-green-700' : data.project.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">
 					{data.project.status === 'active' ? '進行中' : data.project.status === 'completed' ? '完了' : '保留'}
 				</span>
 			</div>
-			<div class="flex items-center gap-2">
-				<button onclick={() => { editColor = data.project.color; selectedTagIds = data.projectTags.map(t => t.id); editProjectModal = true; }} class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="プロジェクト設定">
+			<div class="flex items-center gap-1 md:gap-2 flex-shrink-0">
+				<button onclick={() => { editColor = data.project.color; selectedTagIds = data.projectTags.map(t => t.id); editProjectModal = true; }} class="flex items-center gap-2 p-2 md:px-3 md:py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="プロジェクト設定">
 					<Settings size={18} />
-					<span class="hidden md:inline">設定</span>
+					<span class="hidden lg:inline">設定</span>
 				</button>
 				<form method="POST" action="/dashboard?/logout" use:enhance>
-					<button type="submit" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+					<button type="submit" class="flex items-center gap-2 p-2 md:px-4 md:py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
 						<LogOut size={18} />
-						<span class="hidden md:inline">ログアウト</span>
+						<span class="hidden lg:inline">ログアウト</span>
 					</button>
 				</form>
 			</div>
@@ -166,15 +185,25 @@
 	</header>
 
 	<!-- Main Content with Sidebar -->
-	<div class="flex h-[calc(100vh-73px)]">
+	<div class="flex min-h-[calc(100vh-57px)] md:min-h-[calc(100vh-73px)]">
 		<!-- Left Sidebar -->
-		<aside class="w-64 bg-white border-r border-gray-200 overflow-y-auto">
+		<aside class="fixed lg:relative z-50 lg:z-auto bg-white border-r border-gray-200 overflow-y-auto transition-transform duration-300 h-full lg:h-auto {sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}" style="width: 256px;">
+			<div class="p-4 border-b border-gray-200 flex items-center justify-between lg:hidden">
+				<span class="font-semibold text-gray-800">メニュー</span>
+				<button
+					onclick={() => (sidebarOpen = false)}
+					class="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+				>
+					<X size={20} class="text-gray-600" />
+				</button>
+			</div>
 			<nav class="p-4">
 				<ul class="space-y-1">
 					<li>
 						<a
 							href="/dashboard/projects/{data.project.id}/dashboard"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 transition-colors"
+							onclick={() => (sidebarOpen = false)}
 						>
 							<BarChart3 size={20} />
 							<span class="text-sm font-medium">ダッシュボード</span>
@@ -184,6 +213,7 @@
 						<a
 							href="/dashboard/projects/{data.project.id}/goals"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 transition-colors"
+							onclick={() => (sidebarOpen = false)}
 						>
 							<Target size={20} />
 							<span class="text-sm font-medium">目標管理</span>
@@ -193,6 +223,7 @@
 						<a
 							href="/dashboard/projects/{data.project.id}/boards"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 transition-colors"
+							onclick={() => (sidebarOpen = false)}
 						>
 							<LayoutGrid size={20} />
 							<span class="text-sm font-medium">ボード管理</span>
@@ -202,6 +233,7 @@
 						<a
 							href="/dashboard/projects/{data.project.id}/documents"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-purple-50 transition-colors"
+							onclick={() => (sidebarOpen = false)}
 						>
 							<FileText size={20} />
 							<span class="text-sm font-medium">ドキュメント管理</span>
@@ -211,6 +243,7 @@
 						<a
 							href="/dashboard/projects/{data.project.id}/sns"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-pink-50 transition-colors"
+							onclick={() => (sidebarOpen = false)}
 						>
 							<Users size={20} />
 							<span class="text-sm font-medium">SNS管理</span>
@@ -220,6 +253,7 @@
 						<a
 							href="/dashboard/projects/{data.project.id}/analytics"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-emerald-50 transition-colors"
+							onclick={() => (sidebarOpen = false)}
 						>
 							<BarChart3 size={20} />
 							<span class="text-sm font-medium">SNS分析</span>
@@ -229,6 +263,7 @@
 						<a
 							href="/dashboard/projects/{data.project.id}/posts"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-sky-50 transition-colors"
+							onclick={() => (sidebarOpen = false)}
 						>
 							<Send size={20} />
 							<span class="text-sm font-medium">SNS投稿</span>
@@ -239,17 +274,17 @@
 		</aside>
 
 		<!-- Center Main Content -->
-		<main class="flex-1 px-6 py-8 overflow-y-auto">
+		<main class="flex-1 px-3 md:px-6 py-4 md:py-8 overflow-y-auto">
 		<!-- プロジェクト概要 -->
 		{#if data.project.description || data.projectTags.length > 0}
-			<div class="bg-white rounded-xl shadow-md p-6 mb-6">
+			<div class="bg-white rounded-xl shadow-md p-4 md:p-6 mb-4 md:mb-6">
 				{#if data.project.description}
-					<p class="text-gray-600 mb-4">{data.project.description}</p>
+					<p class="text-gray-600 mb-4 text-sm md:text-base">{data.project.description}</p>
 				{/if}
 				{#if data.projectTags.length > 0}
 					<div class="flex flex-wrap gap-2">
 						{#each data.projectTags as tag}
-							<span class="px-3 py-1 text-sm rounded-full text-white" style="background-color: {tag.color}">{tag.name}</span>
+							<span class="px-2 md:px-3 py-1 text-xs md:text-sm rounded-full text-white" style="background-color: {tag.color}">{tag.name}</span>
 						{/each}
 					</div>
 				{/if}
@@ -257,46 +292,46 @@
 		{/if}
 
 		<!-- KPI目標管理セクション -->
-		<div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-			<div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50">
+		<div class="bg-white rounded-xl shadow-md overflow-hidden mb-4 md:mb-6">
+			<div class="p-3 md:p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50">
 				<div class="flex items-center gap-2">
-					<Target size={20} class="text-indigo-600" />
-					<h2 class="font-semibold text-gray-800">KPI目標管理</h2>
+					<Target size={18} class="text-indigo-600 md:w-5 md:h-5" />
+					<h2 class="font-semibold text-gray-800 text-sm md:text-base">KPI目標管理</h2>
 				</div>
-				<button onclick={() => showAddKpi = !showAddKpi} class="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-					<Plus size={16} />
-					追加
+				<button onclick={() => showAddKpi = !showAddKpi} class="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+					<Plus size={14} class="md:w-4 md:h-4" />
+					<span class="hidden sm:inline">追加</span>
 				</button>
 			</div>
 
-			<div class="p-4">
+			<div class="p-3 md:p-4">
 				<!-- シンプルな目標追加フォーム -->
 				{#if showAddKpi}
-					<form method="POST" action="?/createKpiGoal" use:enhance={handleFormSubmit} class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-						<div class="flex flex-wrap gap-3 items-end">
-							<div class="flex-1 min-w-[120px]">
+					<form method="POST" action="?/createKpiGoal" use:enhance={handleFormSubmit} class="mb-4 md:mb-6 p-3 md:p-4 bg-gray-50 rounded-lg border border-gray-200">
+						<div class="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3 md:items-end">
+							<div class="col-span-2 md:flex-1 md:min-w-[120px]">
 								<span class="block text-xs text-gray-500 mb-1">カテゴリ</span>
-								<select name="category" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+								<select name="category" required class="w-full px-2 md:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
 									{#each kpiCategories as cat}
 										<option value={cat.id}>{cat.name}</option>
 									{/each}
 								</select>
 							</div>
-							<div class="flex-[2] min-w-[150px]">
+							<div class="col-span-2 md:flex-[2] md:min-w-[150px]">
 								<span class="block text-xs text-gray-500 mb-1">目標名</span>
-								<input type="text" name="title" placeholder="例: 週間投稿数" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+								<input type="text" name="title" placeholder="例: 週間投稿数" required class="w-full px-2 md:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
 							</div>
-							<div class="w-24">
+							<div class="md:w-24">
 								<span class="block text-xs text-gray-500 mb-1">目標値</span>
-								<input type="number" name="target_value" placeholder="10" required step="0.01" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+								<input type="number" name="target_value" placeholder="10" required step="0.01" class="w-full px-2 md:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
 							</div>
-							<div class="w-16">
+							<div class="md:w-16">
 								<span class="block text-xs text-gray-500 mb-1">単位</span>
-								<input type="text" name="unit" placeholder="件" value="件" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+								<input type="text" name="unit" placeholder="件" value="件" class="w-full px-2 md:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
 							</div>
-							<div class="w-24">
+							<div class="md:w-24">
 								<span class="block text-xs text-gray-500 mb-1">周期</span>
-								<select name="repeat_cycle" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+								<select name="repeat_cycle" class="w-full px-2 md:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
 									<option value="weekly">毎週</option>
 									<option value="monthly">毎月</option>
 									<option value="quarterly">3ヶ月</option>
@@ -304,14 +339,16 @@
 									<option value="yearly">毎年</option>
 								</select>
 							</div>
-							<div class="w-36">
+							<div class="md:w-36">
 								<span class="block text-xs text-gray-500 mb-1">開始日</span>
-								<input type="date" name="start_date" value={new Date().toISOString().split('T')[0]} class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+								<input type="date" name="start_date" value={new Date().toISOString().split('T')[0]} class="w-full px-2 md:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
 							</div>
-							<button type="submit" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">追加</button>
-							<button type="button" onclick={() => showAddKpi = false} class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-200 rounded-lg">
-								<X size={18} />
-							</button>
+							<div class="col-span-2 flex gap-2 mt-2 md:mt-0">
+								<button type="submit" class="flex-1 md:flex-none px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">追加</button>
+								<button type="button" onclick={() => showAddKpi = false} class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-200 rounded-lg">
+									<X size={18} />
+								</button>
+							</div>
 						</div>
 					</form>
 				{/if}
@@ -613,31 +650,31 @@
 		{/if}
 
 		<!-- ボード・ドキュメント タブUI -->
-		<div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+		<div class="bg-white rounded-xl shadow-md overflow-hidden mb-4 md:mb-6">
 			<!-- タブヘッダー -->
 			<div class="border-b border-gray-200">
 				<div class="flex">
 					<button
 						onclick={() => activeTab = 'boards'}
-						class="flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors {activeTab === 'boards' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}"
+						class="flex-1 flex items-center justify-center gap-1 md:gap-2 px-2 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium transition-colors {activeTab === 'boards' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}"
 					>
-						<LayoutGrid size={18} />
-						ボード
-						<span class="px-2 py-0.5 text-xs rounded-full {activeTab === 'boards' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">{data.boards.length}</span>
+						<LayoutGrid size={16} class="md:w-[18px] md:h-[18px]" />
+						<span class="hidden sm:inline">ボード</span>
+						<span class="px-1.5 md:px-2 py-0.5 text-xs rounded-full {activeTab === 'boards' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">{data.boards.length}</span>
 					</button>
 					<button
 						onclick={() => activeTab = 'documents'}
-						class="flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors {activeTab === 'documents' ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}"
+						class="flex-1 flex items-center justify-center gap-1 md:gap-2 px-2 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium transition-colors {activeTab === 'documents' ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}"
 					>
-						<FileText size={18} />
-						ドキュメント
-						<span class="px-2 py-0.5 text-xs rounded-full {activeTab === 'documents' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}">{data.documents.length}</span>
+						<FileText size={16} class="md:w-[18px] md:h-[18px]" />
+						<span class="hidden sm:inline">ドキュメント</span>
+						<span class="px-1.5 md:px-2 py-0.5 text-xs rounded-full {activeTab === 'documents' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}">{data.documents.length}</span>
 					</button>
 				</div>
 			</div>
 
 			<!-- タブコンテンツ (2カラムレイアウト) -->
-			<div class="p-6 flex gap-6">
+			<div class="p-3 md:p-6 flex flex-col lg:flex-row gap-4 lg:gap-6">
 				{#if activeTab === 'boards'}
 					<!-- 左: このプロジェクトのボード管理 -->
 					<div class="flex-1">
@@ -888,7 +925,7 @@
 				</div>
 
 				<!-- 右: 全ボード一覧ウィジェット -->
-				<aside class="w-80 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6">
+				<aside class="w-full lg:w-80 bg-gray-50 lg:bg-white rounded-xl lg:shadow-md p-4 h-fit lg:sticky lg:top-6">
 					<h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
 						<LayoutGrid size={18} class="text-indigo-600" />
 						全てのボード
@@ -1007,7 +1044,7 @@
 				</div>
 
 				<!-- 右: 全ドキュメント一覧ウィジェット -->
-				<aside class="w-80 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6">
+				<aside class="w-full lg:w-80 bg-gray-50 lg:bg-white rounded-xl lg:shadow-md p-4 h-fit lg:sticky lg:top-6">
 					<h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
 						<FileText size={18} class="text-purple-600" />
 						全てのドキュメント
@@ -1099,7 +1136,7 @@
 				</div>
 
 				<!-- 右: SNS統計ウィジェット -->
-				<aside class="w-80 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6">
+				<aside class="w-full lg:w-80 bg-gray-50 lg:bg-white rounded-xl lg:shadow-md p-4 h-fit lg:sticky lg:top-6">
 					<h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
 						<Users size={18} class="text-pink-600" />
 						SNS統計

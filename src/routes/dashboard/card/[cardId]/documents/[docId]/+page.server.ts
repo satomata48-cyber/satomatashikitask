@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getDB } from '$lib/server/db';
 
-interface Document {
+interface CardDocument {
 	id: number;
 	card_id: number;
 	title: string;
@@ -39,10 +39,10 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 
 		// ドキュメントを取得
 		const document = await db.prepare(
-			'SELECT id, card_id, title, content, created_at, updated_at FROM documents WHERE id = ? AND card_id = ?'
+			'SELECT id, card_id, title, content, created_at, updated_at FROM card_documents WHERE id = ? AND card_id = ?'
 		)
 			.bind(docId, cardId)
-			.first<Document>();
+			.first<CardDocument>();
 
 		if (!document) {
 			throw error(404, 'ドキュメントが見つかりません');
@@ -96,7 +96,7 @@ export const actions = {
 
 			// ドキュメントを更新
 			await db.prepare(
-				'UPDATE documents SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND card_id = ?'
+				'UPDATE card_documents SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND card_id = ?'
 			)
 				.bind(title, content, docId, cardId)
 				.run();
@@ -134,7 +134,7 @@ export const actions = {
 			}
 
 			// ドキュメントを削除
-			await db.prepare('DELETE FROM documents WHERE id = ? AND card_id = ?')
+			await db.prepare('DELETE FROM card_documents WHERE id = ? AND card_id = ?')
 				.bind(docId, cardId)
 				.run();
 		} catch (err) {

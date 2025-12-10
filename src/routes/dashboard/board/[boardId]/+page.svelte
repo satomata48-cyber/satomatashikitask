@@ -28,7 +28,7 @@
 		description_bg_color: string | null;
 		border_color: string | null;
 		discord_notify: number;
-		tags: string;
+		tags?: string | null;
 		has_document?: boolean;
 	}
 
@@ -117,7 +117,7 @@
 		editTags = editTags.filter((_, i) => i !== index);
 	}
 
-	function parseTags(tagsJson: string | null): CardTag[] {
+	function parseTags(tagsJson: string | null | undefined): CardTag[] {
 		if (!tagsJson) return [];
 		try {
 			return JSON.parse(tagsJson);
@@ -382,7 +382,7 @@
 				<!-- 下段: ドキュメント・設定 -->
 				<div class="flex gap-2 items-center overflow-x-auto pb-1 -mx-3 px-3 md:mx-0 md:px-0 md:mt-3">
 					<!-- ドキュメントボタン（最大3つ） -->
-					{#each data.boardDocuments as doc}
+					{#each data.boardDocuments ?? [] as doc}
 						<div class="relative group flex-shrink-0">
 							{#if editingDocId === doc.id}
 								<!-- 編集モード -->
@@ -451,7 +451,7 @@
 					{/each}
 
 					<!-- 新規ドキュメント作成（3つ未満の場合のみ表示） -->
-					{#if data.boardDocuments.length < 3}
+					{#if (data.boardDocuments ?? []).length < 3}
 						{#if showCreateDocForm}
 							<form method="POST" action="?/createBoardDocument" class="flex items-center gap-1 flex-shrink-0" use:enhance={handleFormSubmit}>
 								<input

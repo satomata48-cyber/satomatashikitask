@@ -1,13 +1,14 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
-	import { Users, Youtube, Instagram, ExternalLink, TrendingUp, Eye, ThumbsUp, Video, Twitter, Music, Settings, Key, Save, Facebook, MessageCircle } from 'lucide-svelte';
+	import { Users, Youtube, Instagram, ExternalLink, TrendingUp, Eye, ThumbsUp, Video, Twitter, Music, Settings, Key, Save, Facebook, MessageCircle, RefreshCw, Clock } from 'lucide-svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let showEditSettings = $state(false);
 	let isSubmitting = $state(false);
 	let isFetching = $state(false);
+	let isExtending = $state(false);
 
 	function handleFormSubmit() {
 		return ({ update, result }: any) => {
@@ -28,6 +29,25 @@
 				isFetching = false;
 			});
 		};
+	}
+
+	function handleExtendToken() {
+		return ({ update }: any) => {
+			isExtending = true;
+			update().then(() => {
+				isExtending = false;
+			});
+		};
+	}
+
+	function formatExpiryDate(dateStr: string | null | undefined): string {
+		if (!dateStr) return '不明';
+		const date = new Date(dateStr);
+		const now = new Date();
+		const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+		if (daysLeft < 0) return '期限切れ';
+		if (daysLeft === 0) return '今日まで';
+		return `${date.toLocaleDateString('ja-JP')} (残り${daysLeft}日)`;
 	}
 </script>
 
@@ -66,12 +86,16 @@
 			<div class="space-y-4">
 				<div class="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
 					<p class="text-sm text-emerald-700 mb-2">✓ API認証設定済み</p>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-600">
 						<div>App ID: ****{data.metaSettings.app_id_last4}</div>
 						<div>ステータス: {data.metaSettings.enabled ? '有効' : '無効'}</div>
+						<div class="flex items-center gap-1">
+							<Clock size={12} />
+							トークン期限: {formatExpiryDate(data.metaSettings.token_expires_at)}
+						</div>
 					</div>
 				</div>
-				<div class="flex gap-2">
+				<div class="flex flex-wrap gap-2">
 					<button
 						onclick={() => showEditSettings = true}
 						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -85,6 +109,16 @@
 							class="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm disabled:opacity-50"
 						>
 							{isFetching ? 'データ取得中...' : 'データを取得'}
+						</button>
+					</form>
+					<form method="POST" action="?/extendToken" use:enhance={handleExtendToken}>
+						<button
+							type="submit"
+							disabled={isExtending}
+							class="flex items-center gap-1 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm disabled:opacity-50"
+						>
+							<RefreshCw size={14} class={isExtending ? 'animate-spin' : ''} />
+							{isExtending ? '延長中...' : '60日延長'}
 						</button>
 					</form>
 				</div>

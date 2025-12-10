@@ -6,7 +6,8 @@ import {
 	getInstagramAccounts,
 	getInstagramMedia,
 	getThreadsPosts,
-	debugToken
+	debugToken,
+	getLongLivedToken
 } from '$lib/server/meta';
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
@@ -105,7 +106,7 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		let metaSettings: any = null;
 		try {
 			metaSettings = await db
-				.prepare('SELECT id, app_id, enabled FROM meta_api_settings WHERE project_id = ?')
+				.prepare('SELECT id, app_id, enabled, token_expires_at FROM meta_api_settings WHERE project_id = ?')
 				.bind(projectId)
 				.first();
 		} catch {
@@ -144,7 +145,8 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 				? {
 						hasSettings: true,
 						app_id_last4: metaSettings.app_id?.slice(-4),
-						enabled: metaSettings.enabled === 1
+						enabled: metaSettings.enabled === 1,
+						token_expires_at: metaSettings.token_expires_at
 					}
 				: { hasSettings: false },
 			facebookPage,
@@ -399,6 +401,61 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('Fetch Meta data error:', err);
 			return fail(500, { error: 'データの取得に失敗しました' });
+		}
+	},
+
+	// トークンを60日間の長期トークンに変換
+	extendToken: async ({ locals, platform, params }) => {
+		if (!locals.userId) {
+			return fail(401, { error: '認証が必要です' });
+		}
+
+		const db = getDB(platform);
+		const projectId = parseInt(params.projectId);
+
+		try {
+			// 現在の設定を取得
+			const settings = await db
+				.prepare('SELECT * FROM meta_api_settings WHERE project_id = ? AND enabled = 1')
+				.bind(projectId)
+				.first<{ access_token: string; app_id: string; app_secret: string }>();
+
+			if (!settings) {
+				return fail(400, { error: 'Meta API設定を先に登録してください' });
+			}
+
+			// 長期トークンを取得
+			const result = await getLongLivedToken(settings.access_token, settings.app_id, settings.app_secret);
+
+			if (result.error) {
+				return fail(400, { error: `トークン延長エラー: ${result.error}` });
+			}
+
+			if (!result.token) {
+				return fail(400, { error: 'トークンの取得に失敗しました' });
+			}
+
+			// 有効期限を計算（通常60日）
+			const expiresAt = new Date();
+			expiresAt.setSeconds(expiresAt.getSeconds() + (result.expiresIn || 5184000)); // デフォルト60日
+
+			// 新しいトークンを保存
+			await db
+				.prepare(`
+					UPDATE meta_api_settings
+					SET access_token = ?, token_expires_at = ?, updated_at = CURRENT_TIMESTAMP
+					WHERE project_id = ?
+				`)
+				.bind(result.token, expiresAt.toISOString(), projectId)
+				.run();
+
+			return {
+				success: true,
+				message: `トークンを延長しました。有効期限: ${expiresAt.toLocaleDateString('ja-JP')}`
+			};
+		} catch (err) {
+			console.error('Extend token error:', err);
+			return fail(500, { error: 'トークン延長に失敗しました' });
 		}
 	}
 };

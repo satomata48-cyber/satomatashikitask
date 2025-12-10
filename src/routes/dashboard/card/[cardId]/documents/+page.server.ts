@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getDB } from '$lib/server/db';
 
-interface Document {
+interface CardDocument {
 	id: number;
 	card_id: number;
 	title: string;
@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, cookies }
 
 		// ルートドキュメントが存在するか確認
 		const rootDoc = await db.prepare(
-			'SELECT id FROM documents WHERE card_id = ? AND parent_id IS NULL'
+			'SELECT id FROM card_documents WHERE card_id = ? AND parent_id IS NULL'
 		)
 			.bind(cardId)
 			.first<{ id: number }>();
@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, cookies }
 		// ルートドキュメントがなければ作成
 		if (!rootDoc) {
 			await db.prepare(
-				'INSERT INTO documents (card_id, title, content, parent_id) VALUES (?, ?, ?, NULL)'
+				'INSERT INTO card_documents (card_id, title, content, parent_id) VALUES (?, ?, ?, NULL)'
 			)
 				.bind(cardId, cardResult.title, '<p>ここからドキュメントを作成してください...</p>')
 				.run();
@@ -55,10 +55,10 @@ export const load: PageServerLoad = async ({ locals, platform, params, cookies }
 
 		// カードに関連するすべてのドキュメントを取得
 		const documentsResult = await db.prepare(
-			'SELECT id, card_id, title, content, created_at, updated_at, parent_id FROM documents WHERE card_id = ? ORDER BY parent_id NULLS FIRST, created_at ASC'
+			'SELECT id, card_id, title, content, created_at, updated_at, parent_id FROM card_documents WHERE card_id = ? ORDER BY parent_id NULLS FIRST, created_at ASC'
 		)
 			.bind(cardId)
-			.all<Document>();
+			.all<CardDocument>();
 
 		return {
 			card: {
@@ -114,7 +114,7 @@ export const actions = {
 
 			// ドキュメントを作成
 			const result = await db.prepare(
-				'INSERT INTO documents (card_id, title, content, parent_id) VALUES (?, ?, ?, ?)'
+				'INSERT INTO card_documents (card_id, title, content, parent_id) VALUES (?, ?, ?, ?)'
 			)
 				.bind(cardId, title, content, parentId)
 				.run();
@@ -138,13 +138,6 @@ export const actions = {
 		const title = formData.get('title') as string;
 		const content = formData.get('content') as string;
 
-		console.log('========== SAVE ACTION ==========');
-		console.log('Card ID:', cardId);
-		console.log('Doc ID:', docId);
-		console.log('Title:', title);
-		console.log('Content:', content);
-		console.log('Content length:', content?.length);
-
 		try {
 			// カードの所有権を確認
 			const cardResult = await db.prepare(`
@@ -161,27 +154,12 @@ export const actions = {
 				throw error(403, 'このカードへのアクセス権限がありません');
 			}
 
-			console.log('Before update - checking current state:');
-			const before = await db.prepare('SELECT * FROM documents WHERE id = ?')
-				.bind(docId)
-				.first();
-			console.log('Before:', before);
-
 			// ドキュメントを更新
-			const result = await db.prepare(
-				'UPDATE documents SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND card_id = ?'
+			await db.prepare(
+				'UPDATE card_documents SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND card_id = ?'
 			)
 				.bind(title, content, docId, cardId)
 				.run();
-
-			console.log('Update result:', result);
-
-			console.log('After update - checking new state:');
-			const after = await db.prepare('SELECT * FROM documents WHERE id = ?')
-				.bind(docId)
-				.first();
-			console.log('After:', after);
-			console.log('=================================');
 
 			return { success: true };
 		} catch (err) {
@@ -217,7 +195,7 @@ export const actions = {
 			}
 
 			// ルートドキュメントかどうか確認
-			const doc = await db.prepare('SELECT parent_id FROM documents WHERE id = ? AND card_id = ?')
+			const doc = await db.prepare('SELECT parent_id FROM card_documents WHERE id = ? AND card_id = ?')
 				.bind(docId, cardId)
 				.first<{ parent_id: number | null }>();
 
@@ -226,7 +204,7 @@ export const actions = {
 			}
 
 			// ドキュメントを削除（子ドキュメントも一緒に削除される）
-			await db.prepare('DELETE FROM documents WHERE id = ? AND card_id = ?')
+			await db.prepare('DELETE FROM card_documents WHERE id = ? AND card_id = ?')
 				.bind(docId, cardId)
 				.run();
 

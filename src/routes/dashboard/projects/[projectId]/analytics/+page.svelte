@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BarChart3, TrendingUp, Users, Eye, Heart, MessageCircle, Calendar, Table, Settings, Video, ThumbsUp, PlayCircle, ExternalLink, Key, Plus, Trash2, RefreshCw, Download } from 'lucide-svelte';
+	import { BarChart3, TrendingUp, Users, Eye, Heart, MessageCircle, Calendar, Table, Settings, Video, ThumbsUp, PlayCircle, ExternalLink, Key, Plus, Trash2, RefreshCw, Download, Instagram, Facebook } from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
 	import { onMount } from 'svelte';
 	import Chart from 'chart.js/auto';
@@ -8,7 +8,7 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	type Tab = 'twitter' | 'instagram' | 'tiktok' | 'youtube';
+	type Tab = 'twitter' | 'instagram' | 'threads' | 'facebook' | 'tiktok' | 'youtube';
 	let activeTab = $state<Tab>('twitter');
 
 	// Twitter分析用の状態
@@ -30,6 +30,9 @@
 
 	// Twitter管理用の状態
 	let twitterLoading = $state(false);
+
+	// Meta API管理用の状態
+	let metaLoading = $state(false);
 
 	function formatNumber(num: number): string {
 		if (num >= 1000000) {
@@ -81,6 +84,18 @@
 		twitterLoading = true;
 		return async ({ result, update }: any) => {
 			twitterLoading = false;
+			await update();
+			if (result.type === 'success') {
+				await invalidateAll();
+			}
+		};
+	}
+
+	// Meta API管理フォーム送信ハンドラー
+	function handleMetaFormSubmit() {
+		metaLoading = true;
+		return async ({ result, update }: any) => {
+			metaLoading = false;
 			await update();
 			if (result.type === 'success') {
 				await invalidateAll();
@@ -313,10 +328,10 @@
 
 		<!-- タブ -->
 		<div class="bg-white rounded-xl shadow-md mb-6">
-			<div class="flex border-b border-gray-200">
+			<div class="flex flex-wrap border-b border-gray-200">
 				<button
 					onclick={() => activeTab = 'twitter'}
-					class="flex-1 px-6 py-4 text-center font-medium transition-colors relative
+					class="flex-1 min-w-[100px] px-4 py-4 text-center font-medium transition-colors relative
 						{activeTab === 'twitter' ? 'text-sky-600' : 'text-gray-600 hover:text-gray-900'}"
 				>
 					Twitter / X
@@ -326,7 +341,7 @@
 				</button>
 				<button
 					onclick={() => activeTab = 'instagram'}
-					class="flex-1 px-6 py-4 text-center font-medium transition-colors relative
+					class="flex-1 min-w-[100px] px-4 py-4 text-center font-medium transition-colors relative
 						{activeTab === 'instagram' ? 'text-pink-600' : 'text-gray-600 hover:text-gray-900'}"
 				>
 					Instagram
@@ -335,8 +350,28 @@
 					{/if}
 				</button>
 				<button
+					onclick={() => activeTab = 'threads'}
+					class="flex-1 min-w-[100px] px-4 py-4 text-center font-medium transition-colors relative
+						{activeTab === 'threads' ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'}"
+				>
+					Threads
+					{#if activeTab === 'threads'}
+						<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></div>
+					{/if}
+				</button>
+				<button
+					onclick={() => activeTab = 'facebook'}
+					class="flex-1 min-w-[100px] px-4 py-4 text-center font-medium transition-colors relative
+						{activeTab === 'facebook' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'}"
+				>
+					Facebook
+					{#if activeTab === 'facebook'}
+						<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>
+					{/if}
+				</button>
+				<button
 					onclick={() => activeTab = 'tiktok'}
-					class="flex-1 px-6 py-4 text-center font-medium transition-colors relative
+					class="flex-1 min-w-[100px] px-4 py-4 text-center font-medium transition-colors relative
 						{activeTab === 'tiktok' ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'}"
 				>
 					TikTok
@@ -346,7 +381,7 @@
 				</button>
 				<button
 					onclick={() => activeTab = 'youtube'}
-					class="flex-1 px-6 py-4 text-center font-medium transition-colors relative
+					class="flex-1 min-w-[100px] px-4 py-4 text-center font-medium transition-colors relative
 						{activeTab === 'youtube' ? 'text-red-600' : 'text-gray-600 hover:text-gray-900'}"
 				>
 					YouTube
@@ -812,76 +847,330 @@
 		<!-- Instagram分析 -->
 		{#if activeTab === 'instagram'}
 			<div class="space-y-6">
-				{#if data.instagram.latest}
-					<!-- サマリーカード -->
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-						<div class="bg-white rounded-xl shadow-md p-6">
-							<div class="flex items-center justify-between mb-2">
-								<div class="text-sm text-gray-600">フォロワー数</div>
-								<Users size={20} class="text-pink-600" />
-							</div>
-							<div class="text-3xl font-bold text-gray-900">
-								{formatNumber(data.instagram.latest.followers_count)}
-							</div>
-							<div class="text-sm {getChangeColor(data.instagram.latest.follower_change)} mt-1">
-								{getChangeIcon(data.instagram.latest.follower_change)} {Math.abs(data.instagram.latest.follower_change)}
-							</div>
-						</div>
-
-						<div class="bg-white rounded-xl shadow-md p-6">
-							<div class="flex items-center justify-between mb-2">
-								<div class="text-sm text-gray-600">フォロー数</div>
-								<Users size={20} class="text-pink-600" />
-							</div>
-							<div class="text-3xl font-bold text-gray-900">
-								{formatNumber(data.instagram.latest.following_count)}
-							</div>
-							<div class="text-sm {getChangeColor(data.instagram.latest.following_change)} mt-1">
-								{getChangeIcon(data.instagram.latest.following_change)} {Math.abs(data.instagram.latest.following_change)}
-							</div>
-						</div>
-
-						<div class="bg-white rounded-xl shadow-md p-6">
-							<div class="flex items-center justify-between mb-2">
-								<div class="text-sm text-gray-600">投稿数</div>
-								<MessageCircle size={20} class="text-pink-600" />
-							</div>
-							<div class="text-3xl font-bold text-gray-900">
-								{formatNumber(data.instagram.latest.media_count)}
-							</div>
-							<div class="text-sm {getChangeColor(data.instagram.latest.media_change)} mt-1">
-								{getChangeIcon(data.instagram.latest.media_change)} {Math.abs(data.instagram.latest.media_change)}
-							</div>
-						</div>
-					</div>
-
-					<!-- アカウント情報 -->
-					<div class="bg-white rounded-xl shadow-md p-6">
-						<h3 class="text-lg font-semibold text-gray-800 mb-4">アカウント情報</h3>
-						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-gray-600">ユーザー名:</span>
-								<span class="font-medium">@{data.instagram.latest.username}</span>
-							</div>
-							{#if data.instagram.latest.display_name}
-								<div class="flex items-center gap-2">
-									<span class="text-gray-600">表示名:</span>
-									<span class="font-medium">{data.instagram.latest.display_name}</span>
-								</div>
-							{/if}
-						</div>
-					</div>
-				{:else}
-					<div class="bg-white rounded-xl shadow-md p-12 text-center">
-						<Users size={48} class="text-gray-400 mx-auto mb-4" />
-						<p class="text-gray-600">Instagramアカウントが連携されていません</p>
+				{#if !data.meta.hasSettings}
+					<!-- Meta API未設定 -->
+					<div class="bg-white rounded-xl shadow-md p-8 text-center">
+						<Instagram size={48} class="mx-auto text-gray-300 mb-4" />
+						<h2 class="text-xl font-semibold text-gray-800 mb-2">Meta APIを設定してください</h2>
+						<p class="text-gray-600 mb-4">Instagramデータを取得するには、まずSNS管理ページでMeta APIを設定してください。</p>
 						<a
-							href="/dashboard/projects/{data.project.id}/instagram"
-							class="inline-block mt-4 px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors"
+							href="/dashboard/projects/{data.project.id}/sns"
+							class="inline-flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
 						>
-							連携する
+							SNS管理ページへ
 						</a>
 					</div>
+				{:else}
+					<!-- データ更新ボタン -->
+					<div class="flex justify-end">
+						<form method="POST" action="?/refreshInstagram" use:enhance={handleMetaFormSubmit}>
+							<button
+								type="submit"
+								disabled={metaLoading}
+								class="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50"
+							>
+								<RefreshCw size={16} class={metaLoading ? 'animate-spin' : ''} />
+								{metaLoading ? '更新中...' : 'Instagramデータ更新'}
+							</button>
+						</form>
+					</div>
+
+					{#if data.meta.instagram.account}
+						<!-- アカウント情報 -->
+						<div class="bg-white rounded-xl shadow-md p-6">
+							<div class="flex items-center gap-4">
+								{#if data.meta.instagram.account.profile_picture_url}
+									<img
+										src={data.meta.instagram.account.profile_picture_url}
+										alt={data.meta.instagram.account.username}
+										class="w-20 h-20 rounded-full border-4 border-pink-200"
+									/>
+								{:else}
+									<div class="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center">
+										<Instagram size={32} class="text-white" />
+									</div>
+								{/if}
+								<div class="flex-1">
+									<h2 class="text-2xl font-bold text-gray-800">@{data.meta.instagram.account.username}</h2>
+									<a
+										href="https://www.instagram.com/{data.meta.instagram.account.username}"
+										target="_blank"
+										class="text-pink-600 hover:underline text-sm flex items-center gap-1"
+									>
+										Instagramで見る <ExternalLink size={12} />
+									</a>
+								</div>
+							</div>
+						</div>
+
+						<!-- 統計カード -->
+						<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+							<div class="bg-white rounded-xl p-5 shadow-md">
+								<div class="flex items-center gap-2 mb-2">
+									<Users size={18} class="text-pink-600" />
+									<span class="text-sm text-gray-600">フォロワー</span>
+								</div>
+								<p class="text-3xl font-bold text-pink-600">{formatNumber(data.meta.instagram.account.followers_count || 0)}</p>
+							</div>
+							<div class="bg-white rounded-xl p-5 shadow-md">
+								<div class="flex items-center gap-2 mb-2">
+									<MessageCircle size={18} class="text-purple-600" />
+									<span class="text-sm text-gray-600">投稿数</span>
+								</div>
+								<p class="text-3xl font-bold text-purple-600">{formatNumber(data.meta.instagram.account.media_count || 0)}</p>
+							</div>
+							<div class="bg-white rounded-xl p-5 shadow-md">
+								<div class="flex items-center gap-2 mb-2">
+									<Heart size={18} class="text-red-500" />
+									<span class="text-sm text-gray-600">平均いいね</span>
+								</div>
+								<p class="text-3xl font-bold text-red-500">{formatNumber(data.meta.instagram.stats.avgLikes)}</p>
+							</div>
+							<div class="bg-white rounded-xl p-5 shadow-md">
+								<div class="flex items-center gap-2 mb-2">
+									<TrendingUp size={18} class="text-green-600" />
+									<span class="text-sm text-gray-600">エンゲージ率</span>
+								</div>
+								<p class="text-3xl font-bold text-green-600">{data.meta.instagram.stats.engagementRate.toFixed(2)}%</p>
+							</div>
+						</div>
+
+						<!-- 投稿一覧 -->
+						{#if data.meta.instagram.media.length > 0}
+							<div class="bg-white rounded-xl shadow-md p-6">
+								<h3 class="text-lg font-semibold text-gray-800 mb-4">最新の投稿 ({data.meta.instagram.media.length}件)</h3>
+								<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+									{#each data.meta.instagram.media as media}
+										<a
+											href={media.permalink}
+											target="_blank"
+											class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+										>
+											{#if media.media_url}
+												<img
+													src={media.media_url}
+													alt={media.caption || ''}
+													class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+												/>
+											{:else}
+												<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
+													<Instagram size={32} class="text-gray-400" />
+												</div>
+											{/if}
+											<div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white">
+												<span class="flex items-center gap-1">
+													<Heart size={16} />
+													{media.like_count || 0}
+												</span>
+												<span class="flex items-center gap-1">
+													<MessageCircle size={16} />
+													{media.comments_count || 0}
+												</span>
+											</div>
+										</a>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					{:else}
+						<div class="bg-white rounded-xl shadow-md p-8 text-center">
+							<Instagram size={48} class="mx-auto text-gray-300 mb-4" />
+							<h2 class="text-xl font-semibold text-gray-800 mb-2">Instagramデータを取得</h2>
+							<p class="text-gray-600 mb-4">「Instagramデータ更新」ボタンをクリックしてデータを取得してください</p>
+						</div>
+					{/if}
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Threads分析 -->
+		{#if activeTab === 'threads'}
+			<div class="space-y-6">
+				{#if !data.meta.hasSettings}
+					<div class="bg-white rounded-xl shadow-md p-8 text-center">
+						<MessageCircle size={48} class="mx-auto text-gray-300 mb-4" />
+						<h2 class="text-xl font-semibold text-gray-800 mb-2">Meta APIを設定してください</h2>
+						<p class="text-gray-600 mb-4">Threadsデータを取得するには、まずSNS管理ページでMeta APIを設定してください。</p>
+						<a
+							href="/dashboard/projects/{data.project.id}/sns"
+							class="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+						>
+							SNS管理ページへ
+						</a>
+					</div>
+				{:else}
+					<!-- データ更新ボタン -->
+					<div class="flex justify-end">
+						<form method="POST" action="?/refreshThreads" use:enhance={handleMetaFormSubmit}>
+							<button
+								type="submit"
+								disabled={metaLoading}
+								class="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+							>
+								<RefreshCw size={16} class={metaLoading ? 'animate-spin' : ''} />
+								{metaLoading ? '更新中...' : 'Threadsデータ更新'}
+							</button>
+						</form>
+					</div>
+
+					<!-- 統計カード -->
+					<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+						<div class="bg-white rounded-xl p-5 shadow-md">
+							<div class="flex items-center gap-2 mb-2">
+								<MessageCircle size={18} class="text-gray-700" />
+								<span class="text-sm text-gray-600">投稿数</span>
+							</div>
+							<p class="text-3xl font-bold text-gray-800">{data.meta.threads.stats.totalPosts.toLocaleString()}</p>
+						</div>
+						<div class="bg-white rounded-xl p-5 shadow-md">
+							<div class="flex items-center gap-2 mb-2">
+								<Heart size={18} class="text-red-500" />
+								<span class="text-sm text-gray-600">総いいね</span>
+							</div>
+							<p class="text-3xl font-bold text-red-500">{data.meta.threads.stats.totalLikes.toLocaleString()}</p>
+						</div>
+						<div class="bg-white rounded-xl p-5 shadow-md">
+							<div class="flex items-center gap-2 mb-2">
+								<MessageCircle size={18} class="text-blue-600" />
+								<span class="text-sm text-gray-600">総リプライ</span>
+							</div>
+							<p class="text-3xl font-bold text-blue-600">{data.meta.threads.stats.totalReplies.toLocaleString()}</p>
+						</div>
+						<div class="bg-white rounded-xl p-5 shadow-md">
+							<div class="flex items-center gap-2 mb-2">
+								<Eye size={18} class="text-purple-600" />
+								<span class="text-sm text-gray-600">総閲覧数</span>
+							</div>
+							<p class="text-3xl font-bold text-purple-600">{data.meta.threads.stats.totalViews.toLocaleString()}</p>
+						</div>
+					</div>
+
+					<!-- 投稿一覧 -->
+					{#if data.meta.threads.posts.length > 0}
+						<div class="bg-white rounded-xl shadow-md p-6">
+							<h3 class="text-lg font-semibold text-gray-800 mb-4">投稿一覧 ({data.meta.threads.posts.length}件)</h3>
+							<div class="space-y-4 max-h-96 overflow-y-auto">
+								{#each data.meta.threads.posts as post}
+									<div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+										<p class="text-gray-800 whitespace-pre-wrap mb-3">{post.text || '(テキストなし)'}</p>
+										<div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+											<span class="flex items-center gap-1">
+												<Heart size={14} class="text-red-500" />
+												{post.like_count || 0}
+											</span>
+											<span class="flex items-center gap-1">
+												<MessageCircle size={14} class="text-blue-500" />
+												{post.reply_count || 0}
+											</span>
+											<span class="flex items-center gap-1">
+												<Eye size={14} class="text-gray-500" />
+												{post.views || 0}
+											</span>
+											{#if post.permalink}
+												<a href={post.permalink} target="_blank" class="text-gray-500 hover:text-gray-700 flex items-center gap-1">
+													Threadsで見る <ExternalLink size={12} />
+												</a>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{:else}
+						<div class="bg-white rounded-xl shadow-md p-8 text-center">
+							<MessageCircle size={48} class="mx-auto text-gray-300 mb-3" />
+							<p class="text-gray-600">Threads投稿データがありません</p>
+							<p class="text-sm text-gray-500 mt-1">「Threadsデータ更新」ボタンをクリックして取得してください</p>
+						</div>
+					{/if}
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Facebook分析 -->
+		{#if activeTab === 'facebook'}
+			<div class="space-y-6">
+				{#if !data.meta.hasSettings}
+					<div class="bg-white rounded-xl shadow-md p-8 text-center">
+						<Facebook size={48} class="mx-auto text-gray-300 mb-4" />
+						<h2 class="text-xl font-semibold text-gray-800 mb-2">Meta APIを設定してください</h2>
+						<p class="text-gray-600 mb-4">Facebookデータを取得するには、まずSNS管理ページでMeta APIを設定してください。</p>
+						<a
+							href="/dashboard/projects/{data.project.id}/sns"
+							class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						>
+							SNS管理ページへ
+						</a>
+					</div>
+				{:else}
+					<!-- データ更新ボタン -->
+					<div class="flex justify-end">
+						<form method="POST" action="?/refreshFacebook" use:enhance={handleMetaFormSubmit}>
+							<button
+								type="submit"
+								disabled={metaLoading}
+								class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+							>
+								<RefreshCw size={16} class={metaLoading ? 'animate-spin' : ''} />
+								{metaLoading ? '更新中...' : 'Facebookデータ更新'}
+							</button>
+						</form>
+					</div>
+
+					{#if data.meta.facebook.page}
+						<!-- ページ情報 -->
+						<div class="bg-white rounded-xl shadow-md p-6">
+							<div class="flex items-center gap-4">
+								<div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+									<Facebook size={32} class="text-white" />
+								</div>
+								<div class="flex-1">
+									<h2 class="text-2xl font-bold text-gray-800">{data.meta.facebook.page.page_name}</h2>
+									{#if data.meta.facebook.page.category}
+										<p class="text-gray-600">{data.meta.facebook.page.category}</p>
+									{/if}
+									<a
+										href="https://www.facebook.com/{data.meta.facebook.page.page_id}"
+										target="_blank"
+										class="text-blue-600 hover:underline text-sm flex items-center gap-1 mt-1"
+									>
+										Facebookで見る <ExternalLink size={12} />
+									</a>
+								</div>
+							</div>
+						</div>
+
+						<!-- 統計カード -->
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+							<div class="bg-white rounded-xl p-6 shadow-md">
+								<div class="flex items-center gap-2 mb-3">
+									<Users size={20} class="text-blue-600" />
+									<span class="text-sm text-gray-600">フォロワー数</span>
+								</div>
+								<p class="text-4xl font-bold text-blue-600">{(data.meta.facebook.page.followers_count || 0).toLocaleString()}</p>
+							</div>
+							<div class="bg-white rounded-xl p-6 shadow-md">
+								<div class="flex items-center gap-2 mb-3">
+									<Facebook size={20} class="text-indigo-600" />
+									<span class="text-sm text-gray-600">ページID</span>
+								</div>
+								<p class="text-lg font-mono text-indigo-600">{data.meta.facebook.page.page_id}</p>
+							</div>
+							<div class="bg-white rounded-xl p-6 shadow-md">
+								<div class="flex items-center gap-2 mb-3">
+									<TrendingUp size={20} class="text-green-600" />
+									<span class="text-sm text-gray-600">ステータス</span>
+								</div>
+								<p class="text-lg font-semibold text-green-600">連携済み</p>
+							</div>
+						</div>
+					{:else}
+						<div class="bg-white rounded-xl shadow-md p-8 text-center">
+							<Facebook size={48} class="mx-auto text-gray-300 mb-4" />
+							<h2 class="text-xl font-semibold text-gray-800 mb-2">Facebookページを連携</h2>
+							<p class="text-gray-600 mb-4">「Facebookデータ更新」ボタンをクリックしてFacebookページデータを取得してください。</p>
+						</div>
+					{/if}
 				{/if}
 			</div>
 		{/if}

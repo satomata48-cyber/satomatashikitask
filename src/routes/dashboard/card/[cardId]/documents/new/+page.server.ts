@@ -73,7 +73,7 @@ export const actions = {
 
 			// ドキュメントを作成
 			await db.prepare(
-				'INSERT INTO documents (card_id, title, content) VALUES (?, ?, ?)'
+				'INSERT INTO card_documents (card_id, title, content) VALUES (?, ?, ?)'
 			)
 				.bind(cardId, title, content)
 				.run();

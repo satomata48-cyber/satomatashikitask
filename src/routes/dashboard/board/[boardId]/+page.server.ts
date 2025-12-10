@@ -29,20 +29,13 @@ interface Card {
 	description_bg_color: string | null;
 	border_color: string | null;
 	discord_notify: number;
-	tags: string;
-	has_document?: boolean;
 }
 
-interface Document {
+interface BoardDocument {
 	id: number;
-	card_id: number | null;
-	board_id: number | null;
 	title: string;
-	content: string;
-	created_at: string;
-	updated_at: string;
-	parent_id: number | null;
 }
+
 
 export const load: PageServerLoad = async ({ locals, platform, params, cookies }) => {
 	if (!locals.userId) {
@@ -102,8 +95,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, cookies }
 						c.id, c.list_id, c.title, c.description, c.due_date, c.position,
 						c.title_color, c.description_color, c.due_date_color,
 						c.title_bg_color, c.description_bg_color, c.border_color,
-						c.discord_notify, c.tags,
-						CASE WHEN EXISTS (SELECT 1 FROM documents d WHERE d.card_id = c.id) THEN 1 ELSE 0 END as has_document
+						c.discord_notify
 					FROM cards c
 					WHERE c.list_id IN (${listIds})
 					ORDER BY c.position`
@@ -112,12 +104,12 @@ export const load: PageServerLoad = async ({ locals, platform, params, cookies }
 			cards = cardsResult.results;
 		}
 
-		// ボードのルートドキュメント（parent_id = NULL）を取得
-		const documentsResult = await db
-			.prepare('SELECT id, board_id, card_id, title, content, created_at, updated_at, parent_id FROM documents WHERE board_id = ? AND parent_id IS NULL ORDER BY created_at ASC LIMIT 3')
+		// ボードのドキュメントを取得（最大3つ）
+		const boardDocumentsResult = await db
+			.prepare('SELECT id, title FROM documents WHERE board_id = ? ORDER BY id LIMIT 3')
 			.bind(boardId)
-			.all<Document>();
-		const boardDocuments = documentsResult.results;
+			.all<BoardDocument>();
+		const boardDocuments = boardDocumentsResult.results;
 
 		return {
 			boards: boards.results,
@@ -327,7 +319,6 @@ export const actions: Actions = {
 		const description_bg_color = data.get('description_bg_color')?.toString() || null;
 		const border_color = data.get('border_color')?.toString() || null;
 		const discord_notify = data.get('discord_notify') === '1' ? 1 : 0;
-		const tags = data.get('tags')?.toString() || '[]';
 
 		if (!id || !title) {
 			return fail(400, { error: 'カードIDと名前が必要です' });
@@ -346,9 +337,9 @@ export const actions: Actions = {
 			}
 
 			await db.prepare(
-				'UPDATE cards SET title = ?, description = ?, due_date = ?, title_color = ?, description_color = ?, due_date_color = ?, title_bg_color = ?, description_bg_color = ?, border_color = ?, discord_notify = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+				'UPDATE cards SET title = ?, description = ?, due_date = ?, title_color = ?, description_color = ?, due_date_color = ?, title_bg_color = ?, description_bg_color = ?, border_color = ?, discord_notify = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
 			)
-				.bind(title, description, due_date, title_color, description_color, due_date_color, title_bg_color, description_bg_color, border_color, discord_notify, tags, parseInt(id))
+				.bind(title, description, due_date, title_color, description_color, due_date_color, title_bg_color, description_bg_color, border_color, discord_notify, parseInt(id))
 				.run();
 
 			return { success: true };
@@ -411,17 +402,17 @@ export const actions: Actions = {
 		try {
 			// ボードの所有権を確認
 			const board = await db
-				.prepare('SELECT id FROM boards WHERE id = ? AND user_id = ?')
+				.prepare('SELECT id, user_id FROM boards WHERE id = ? AND user_id = ?')
 				.bind(parseInt(boardId), locals.userId)
-				.first<{ id: number }>();
+				.first<{ id: number; user_id: number }>();
 
 			if (!board) {
 				return fail(403, { error: 'このボードへのアクセス権限がありません' });
 			}
 
-			// 既存のルートドキュメント数を確認（最大3つ）
+			// 既存のドキュメント数を確認（最大3つ）
 			const countResult = await db
-				.prepare('SELECT COUNT(*) as count FROM documents WHERE board_id = ? AND parent_id IS NULL')
+				.prepare('SELECT COUNT(*) as count FROM documents WHERE board_id = ?')
 				.bind(parseInt(boardId))
 				.first<{ count: number }>();
 
@@ -431,8 +422,8 @@ export const actions: Actions = {
 
 			// ドキュメントを作成
 			const result = await db
-				.prepare('INSERT INTO documents (board_id, card_id, title, content, parent_id) VALUES (?, NULL, ?, ?, NULL)')
-				.bind(parseInt(boardId), title, '<p>ここから入力してください...</p>')
+				.prepare('INSERT INTO documents (user_id, board_id, title, content) VALUES (?, ?, ?, ?)')
+				.bind(locals.userId, parseInt(boardId), title, '<p>ここから入力してください...</p>')
 				.run();
 
 			return { success: true, documentId: result.meta.last_row_id };
@@ -502,21 +493,16 @@ export const actions: Actions = {
 			// ドキュメントの所有権を確認（ボード経由）
 			const doc = await db
 				.prepare(`
-					SELECT d.id, d.parent_id
+					SELECT d.id
 					FROM documents d
 					JOIN boards b ON d.board_id = b.id
 					WHERE d.id = ? AND b.user_id = ?
 				`)
 				.bind(parseInt(docId), locals.userId)
-				.first<{ id: number; parent_id: number | null }>();
+				.first<{ id: number }>();
 
 			if (!doc) {
 				return fail(403, { error: 'このドキュメントへのアクセス権限がありません' });
-			}
-
-			// ルートドキュメント（parent_id = NULL）のみ削除可能
-			if (doc.parent_id !== null) {
-				return fail(400, { error: 'サブページは削除できません' });
 			}
 
 			// ドキュメントを削除

@@ -2,6 +2,7 @@ import { error, redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getDB } from '$lib/server/db';
 import { getUserStats, getUserInfo, getUserTweets } from '$lib/server/twitter';
+import { getFacebookPages, getInstagramAccounts, getInstagramMedia, getThreadsPosts } from '$lib/server/meta';
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	if (!locals.userId) {
@@ -366,6 +367,102 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 			// Table may not exist
 		}
 
+		// ===== Meta API (Instagram/Threads/Facebook) データ取得 =====
+		let metaSettings: any = null;
+		let instagramAccount: any = null;
+		let instagramMedia: any[] = [];
+		let threadsPosts: any[] = [];
+		let facebookPage: any = null;
+		let metaStats = {
+			instagram: { totalLikes: 0, totalComments: 0, avgLikes: 0, avgComments: 0, engagementRate: 0 },
+			threads: { totalPosts: 0, totalLikes: 0, totalReplies: 0, totalViews: 0, avgLikes: 0, avgReplies: 0 }
+		};
+
+		try {
+			// Meta API設定を取得
+			metaSettings = await db
+				.prepare('SELECT * FROM meta_api_settings WHERE project_id = ? AND enabled = 1')
+				.bind(projectId)
+				.first();
+		} catch {
+			// Table may not exist
+		}
+
+		if (metaSettings) {
+			// Instagram Business Account情報を取得
+			try {
+				instagramAccount = await db
+					.prepare('SELECT * FROM instagram_business_accounts WHERE project_id = ? ORDER BY updated_at DESC LIMIT 1')
+					.bind(projectId)
+					.first();
+			} catch {
+				// Table may not exist
+			}
+
+			// Instagramメディアを取得
+			try {
+				const mediaResult = await db
+					.prepare(`
+						SELECT * FROM instagram_media
+						WHERE project_id = ?
+						ORDER BY timestamp DESC
+						LIMIT 24
+					`)
+					.bind(projectId)
+					.all();
+				instagramMedia = mediaResult.results || [];
+
+				// Instagram統計を計算
+				if (instagramMedia.length > 0) {
+					metaStats.instagram.totalLikes = instagramMedia.reduce((sum: number, m: any) => sum + (m.like_count || 0), 0);
+					metaStats.instagram.totalComments = instagramMedia.reduce((sum: number, m: any) => sum + (m.comments_count || 0), 0);
+					metaStats.instagram.avgLikes = Math.round(metaStats.instagram.totalLikes / instagramMedia.length);
+					metaStats.instagram.avgComments = Math.round(metaStats.instagram.totalComments / instagramMedia.length);
+					if (instagramAccount?.followers_count > 0) {
+						metaStats.instagram.engagementRate = ((metaStats.instagram.totalLikes + metaStats.instagram.totalComments) / instagramMedia.length / instagramAccount.followers_count) * 100;
+					}
+				}
+			} catch {
+				// Table may not exist
+			}
+
+			// Threads投稿を取得
+			try {
+				const threadsResult = await db
+					.prepare(`
+						SELECT * FROM threads_posts
+						WHERE project_id = ?
+						ORDER BY timestamp DESC
+						LIMIT 50
+					`)
+					.bind(projectId)
+					.all();
+				threadsPosts = threadsResult.results || [];
+
+				// Threads統計を計算
+				if (threadsPosts.length > 0) {
+					metaStats.threads.totalPosts = threadsPosts.length;
+					metaStats.threads.totalLikes = threadsPosts.reduce((sum: number, p: any) => sum + (p.like_count || 0), 0);
+					metaStats.threads.totalReplies = threadsPosts.reduce((sum: number, p: any) => sum + (p.reply_count || 0), 0);
+					metaStats.threads.totalViews = threadsPosts.reduce((sum: number, p: any) => sum + (p.views || 0), 0);
+					metaStats.threads.avgLikes = Math.round(metaStats.threads.totalLikes / threadsPosts.length);
+					metaStats.threads.avgReplies = Math.round(metaStats.threads.totalReplies / threadsPosts.length);
+				}
+			} catch {
+				// Table may not exist
+			}
+
+			// Facebookページを取得
+			try {
+				facebookPage = await db
+					.prepare('SELECT * FROM facebook_pages WHERE project_id = ? ORDER BY updated_at DESC LIMIT 1')
+					.bind(projectId)
+					.first();
+			} catch {
+				// Table may not exist
+			}
+		}
+
 		return {
 			project,
 			twitter: {
@@ -389,6 +486,22 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 				settings: youtubeSettings,
 				hasApiKey: !!youtubeSettings?.api_key,
 				postFrequency: youtubePostFrequency
+			},
+			// Meta API data
+			meta: {
+				hasSettings: !!metaSettings,
+				instagram: {
+					account: instagramAccount,
+					media: instagramMedia,
+					stats: metaStats.instagram
+				},
+				threads: {
+					posts: threadsPosts,
+					stats: metaStats.threads
+				},
+				facebook: {
+					page: facebookPage
+				}
 			}
 		};
 	} catch (err) {
@@ -497,10 +610,9 @@ export const actions: Actions = {
 				.prepare(`
 					INSERT INTO youtube_channels (user_id, project_id, channel_id, channel_handle, channel_name, thumbnail_url, updated_at)
 					VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-					ON CONFLICT(user_id, channel_id) DO UPDATE SET
+					ON CONFLICT(project_id, channel_id) DO UPDATE SET
 						channel_name = excluded.channel_name,
 						thumbnail_url = excluded.thumbnail_url,
-						project_id = excluded.project_id,
 						updated_at = CURRENT_TIMESTAMP
 				`)
 				.bind(
@@ -999,6 +1111,246 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('Fetch Twitter tweets error:', err);
 			return fail(500, { error: 'Failed to fetch Twitter tweets' });
+		}
+	},
+
+	// ===== Meta API アクション =====
+
+	// Instagramデータを更新
+	refreshInstagram: async ({ locals, platform, params }) => {
+		if (!locals.userId) {
+			return fail(401, { error: '認証が必要です' });
+		}
+
+		const db = getDB(platform);
+		const projectId = parseInt(params.projectId);
+
+		try {
+			const settings = await db
+				.prepare('SELECT * FROM meta_api_settings WHERE project_id = ? AND enabled = 1')
+				.bind(projectId)
+				.first<{ access_token: string }>();
+
+			if (!settings) {
+				return fail(400, { error: 'Meta API設定を先に登録してください（SNS管理ページ）' });
+			}
+
+			// Facebookページを取得してInstagramアカウントを探す
+			const pagesResult = await getFacebookPages(settings.access_token);
+			if (pagesResult.error) {
+				return fail(400, { error: `Facebook Error: ${pagesResult.error}` });
+			}
+
+			if (pagesResult.pages.length === 0) {
+				return fail(400, { error: 'Facebookページが見つかりません' });
+			}
+
+			const page = pagesResult.pages[0];
+			const igResult = await getInstagramAccounts(page.access_token, page.id);
+
+			if (igResult.error || !igResult.account) {
+				return fail(400, { error: igResult.error || 'Instagramビジネスアカウントが見つかりません' });
+			}
+
+			const igAccount = igResult.account;
+
+			// Instagramアカウント情報を保存
+			await db
+				.prepare(`
+					INSERT INTO instagram_business_accounts (project_id, ig_account_id, username, followers_count, follows_count, media_count, profile_picture_url, updated_at)
+					VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+					ON CONFLICT(project_id, ig_account_id) DO UPDATE SET
+						username = excluded.username,
+						followers_count = excluded.followers_count,
+						follows_count = excluded.follows_count,
+						media_count = excluded.media_count,
+						profile_picture_url = excluded.profile_picture_url,
+						updated_at = CURRENT_TIMESTAMP
+				`)
+				.bind(
+					projectId,
+					igAccount.id,
+					igAccount.username,
+					igAccount.followers_count || 0,
+					igAccount.follows_count || 0,
+					igAccount.media_count || 0,
+					igAccount.profile_picture_url || null
+				)
+				.run();
+
+			// Instagramメディアを取得
+			const mediaResult = await getInstagramMedia(igAccount.id, page.access_token, 25);
+
+			let savedMediaCount = 0;
+			if (mediaResult.media.length > 0) {
+				for (const media of mediaResult.media) {
+					await db
+						.prepare(`
+							INSERT INTO instagram_media (project_id, media_id, media_type, media_url, permalink, caption, like_count, comments_count, timestamp, created_at)
+							VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+							ON CONFLICT(project_id, media_id) DO UPDATE SET
+								media_url = excluded.media_url,
+								like_count = excluded.like_count,
+								comments_count = excluded.comments_count
+						`)
+						.bind(
+							projectId,
+							media.id,
+							media.media_type || 'IMAGE',
+							media.media_url || null,
+							media.permalink || null,
+							media.caption || null,
+							media.like_count || 0,
+							media.comments_count || 0,
+							media.timestamp || null
+						)
+						.run();
+					savedMediaCount++;
+				}
+			}
+
+			return {
+				success: true,
+				message: `Instagram @${igAccount.username} のデータを更新しました（投稿${savedMediaCount}件）`
+			};
+		} catch (err) {
+			console.error('Refresh Instagram data error:', err);
+			return fail(500, { error: 'Instagramデータの更新に失敗しました' });
+		}
+	},
+
+	// Threadsデータを更新
+	refreshThreads: async ({ locals, platform, params }) => {
+		if (!locals.userId) {
+			return fail(401, { error: '認証が必要です' });
+		}
+
+		const db = getDB(platform);
+		const projectId = parseInt(params.projectId);
+
+		try {
+			const settings = await db
+				.prepare('SELECT * FROM meta_api_settings WHERE project_id = ? AND enabled = 1')
+				.bind(projectId)
+				.first<{ access_token: string }>();
+
+			if (!settings) {
+				return fail(400, { error: 'Meta API設定を先に登録してください（SNS管理ページ）' });
+			}
+
+			// Threads投稿を取得
+			const threadsResult = await getThreadsPosts(settings.access_token, 'me', 50);
+
+			if (threadsResult.error) {
+				return fail(400, { error: `Threads Error: ${threadsResult.error}` });
+			}
+
+			let savedCount = 0;
+			if (threadsResult.threads.length > 0) {
+				for (const thread of threadsResult.threads) {
+					await db
+						.prepare(`
+							INSERT INTO threads_posts (
+								project_id, thread_id, text, permalink, timestamp,
+								like_count, reply_count, quote_count, repost_count, views, created_at
+							)
+							VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+							ON CONFLICT(project_id, thread_id) DO UPDATE SET
+								text = excluded.text,
+								like_count = excluded.like_count,
+								reply_count = excluded.reply_count,
+								quote_count = excluded.quote_count,
+								repost_count = excluded.repost_count,
+								views = excluded.views
+						`)
+						.bind(
+							projectId,
+							thread.id,
+							thread.text || null,
+							thread.permalink || null,
+							thread.timestamp || null,
+							thread.like_count || 0,
+							thread.reply_count || 0,
+							thread.quote_count || 0,
+							thread.repost_count || 0,
+							thread.views || 0
+						)
+						.run();
+					savedCount++;
+				}
+			}
+
+			return {
+				success: true,
+				message: `Threadsデータを更新しました（${savedCount}件の投稿）`
+			};
+		} catch (err) {
+			console.error('Refresh Threads data error:', err);
+			return fail(500, { error: 'Threadsデータの更新に失敗しました' });
+		}
+	},
+
+	// Facebookデータを更新
+	refreshFacebook: async ({ locals, platform, params }) => {
+		if (!locals.userId) {
+			return fail(401, { error: '認証が必要です' });
+		}
+
+		const db = getDB(platform);
+		const projectId = parseInt(params.projectId);
+
+		try {
+			const settings = await db
+				.prepare('SELECT * FROM meta_api_settings WHERE project_id = ? AND enabled = 1')
+				.bind(projectId)
+				.first<{ access_token: string }>();
+
+			if (!settings) {
+				return fail(400, { error: 'Meta API設定を先に登録してください（SNS管理ページ）' });
+			}
+
+			// Facebookページを取得
+			const pagesResult = await getFacebookPages(settings.access_token);
+
+			if (pagesResult.error) {
+				return fail(400, { error: `Facebook Error: ${pagesResult.error}` });
+			}
+
+			if (pagesResult.pages.length === 0) {
+				return fail(400, { error: 'Facebookページが見つかりません。このアクセストークンにページ管理権限があるか確認してください。' });
+			}
+
+			const page = pagesResult.pages[0];
+
+			// ページ情報を保存
+			await db
+				.prepare(`
+					INSERT INTO facebook_pages (project_id, page_id, page_name, page_access_token, category, followers_count, updated_at)
+					VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+					ON CONFLICT(project_id, page_id) DO UPDATE SET
+						page_name = excluded.page_name,
+						page_access_token = excluded.page_access_token,
+						category = excluded.category,
+						followers_count = excluded.followers_count,
+						updated_at = CURRENT_TIMESTAMP
+				`)
+				.bind(
+					projectId,
+					page.id,
+					page.name,
+					page.access_token,
+					page.category || null,
+					page.followers_count || 0
+				)
+				.run();
+
+			return {
+				success: true,
+				message: `Facebookページ「${page.name}」のデータを更新しました`
+			};
+		} catch (err) {
+			console.error('Refresh Facebook data error:', err);
+			return fail(500, { error: 'Facebookデータの更新に失敗しました' });
 		}
 	}
 };

@@ -1,6 +1,7 @@
-import { fail, redirect } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
+import { error, redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
 import { getDB } from '$lib/server/db';
+import { getInstagramAccounts, getInstagramMedia } from '$lib/server/meta';
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	if (!locals.userId) {
@@ -14,237 +15,209 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	try {
 		// プロジェクト情報を取得
 		const project = await db
-			.prepare('SELECT id, title FROM projects WHERE id = ? AND user_id = ?')
+			.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?')
 			.bind(projectId, userId)
-			.first<{ id: number; title: string }>();
+			.first();
 
 		if (!project) {
-			throw redirect(303, '/dashboard');
+			throw error(404, 'プロジェクトが見つかりません');
 		}
 
-		// Instagram設定を取得
-		const settings = await db
-			.prepare('SELECT * FROM instagram_settings WHERE project_id = ?')
-			.bind(projectId)
-			.first<{
-				id: number;
-				access_token: string | null;
-				instagram_business_account_id: string | null;
-				facebook_page_id: string | null;
-				enabled: number;
-			}>();
-
-		// Instagramアカウント情報を取得
-		let instagramAccount = null;
-		let instagramStats = null;
-		let instagramPosts: any[] = [];
-
-		if (settings?.instagram_business_account_id) {
-			instagramAccount = await db
-				.prepare('SELECT * FROM instagram_accounts WHERE project_id = ? ORDER BY created_at DESC LIMIT 1')
+		// Meta API設定を取得
+		let metaSettings: any = null;
+		try {
+			metaSettings = await db
+				.prepare('SELECT * FROM meta_api_settings WHERE project_id = ? AND enabled = 1')
 				.bind(projectId)
 				.first();
+		} catch {
+			// Table may not exist
+		}
 
-			if (instagramAccount) {
-				// 最新の統計を取得
-				instagramStats = await db
-					.prepare('SELECT * FROM instagram_stats WHERE account_id = ? ORDER BY recorded_date DESC LIMIT 1')
-					.bind(instagramAccount.id)
-					.first();
+		// Instagram Business Account情報を取得
+		let instagramAccount: any = null;
+		try {
+			instagramAccount = await db
+				.prepare('SELECT * FROM instagram_business_accounts WHERE project_id = ? ORDER BY updated_at DESC LIMIT 1')
+				.bind(projectId)
+				.first();
+		} catch {
+			// Table may not exist
+		}
 
-				// 最新の投稿を取得（トップ10）
-				const postsResult = await db
+		// Instagramメディア（投稿）を取得
+		let instagramMedia: any[] = [];
+		if (instagramAccount) {
+			try {
+				const mediaRows = await db
 					.prepare(`
-						SELECT p.*, ps.like_count, ps.comment_count, ps.impressions, ps.reach
-						FROM instagram_posts p
-						LEFT JOIN instagram_post_stats ps ON p.id = ps.post_id
-							AND ps.recorded_date = (SELECT MAX(recorded_date) FROM instagram_post_stats WHERE post_id = p.id)
-						WHERE p.account_id = ?
-						ORDER BY p.timestamp DESC
-						LIMIT 10
+						SELECT * FROM instagram_media
+						WHERE account_id = ?
+						ORDER BY timestamp DESC
+						LIMIT 50
 					`)
 					.bind(instagramAccount.id)
 					.all();
-
-				instagramPosts = postsResult.results;
+				instagramMedia = mediaRows.results || [];
+			} catch {
+				// Table may not exist
 			}
 		}
 
-		// Facebookページ情報を取得
-		let facebookPage = null;
-		let facebookStats = null;
-		let facebookPosts: any[] = [];
+		// 統計データを計算
+		let stats = {
+			totalLikes: 0,
+			totalComments: 0,
+			avgLikes: 0,
+			avgComments: 0,
+			engagementRate: 0
+		};
 
-		if (settings?.facebook_page_id) {
-			facebookPage = await db
-				.prepare('SELECT * FROM facebook_pages WHERE project_id = ? ORDER BY created_at DESC LIMIT 1')
-				.bind(projectId)
-				.first();
-
-			if (facebookPage) {
-				// 最新の統計を取得
-				facebookStats = await db
-					.prepare('SELECT * FROM facebook_stats WHERE page_id = ? ORDER BY recorded_date DESC LIMIT 1')
-					.bind(facebookPage.id)
-					.first();
-
-				// 最新の投稿を取得（トップ10）
-				const postsResult = await db
-					.prepare(`
-						SELECT p.*, ps.reactions_count, ps.comments_count, ps.shares_count, ps.impressions, ps.reach
-						FROM facebook_posts p
-						LEFT JOIN facebook_post_stats ps ON p.id = ps.post_id
-							AND ps.recorded_date = (SELECT MAX(recorded_date) FROM facebook_post_stats WHERE post_id = p.id)
-						WHERE p.page_id = ?
-						ORDER BY p.created_time DESC
-						LIMIT 10
-					`)
-					.bind(facebookPage.id)
-					.all();
-
-				facebookPosts = postsResult.results;
+		if (instagramMedia.length > 0) {
+			stats.totalLikes = instagramMedia.reduce((sum: number, m: any) => sum + (m.like_count || 0), 0);
+			stats.totalComments = instagramMedia.reduce((sum: number, m: any) => sum + (m.comments_count || 0), 0);
+			stats.avgLikes = Math.round(stats.totalLikes / instagramMedia.length);
+			stats.avgComments = Math.round(stats.totalComments / instagramMedia.length);
+			if (instagramAccount?.followers_count > 0) {
+				stats.engagementRate = ((stats.avgLikes + stats.avgComments) / instagramAccount.followers_count * 100);
 			}
 		}
 
 		return {
 			project,
-			settings: settings ? {
-				...settings,
-				enabled: Boolean(settings.enabled)
-			} : null,
+			hasMetaSettings: !!metaSettings,
 			instagramAccount,
-			instagramStats,
-			instagramPosts,
-			facebookPage,
-			facebookStats,
-			facebookPosts
+			instagramMedia,
+			stats
 		};
 	} catch (err) {
-		console.error('Instagram page load error:', err);
-		throw redirect(303, '/dashboard');
+		console.error('Instagram analytics load error:', err);
+		throw error(500, 'データの読み込みに失敗しました');
 	}
 };
 
 export const actions: Actions = {
-	saveAccessToken: async ({ request, locals, platform, params }) => {
+	// Instagramデータを更新
+	refreshData: async ({ locals, platform, params }) => {
 		if (!locals.userId) {
 			return fail(401, { error: '認証が必要です' });
 		}
 
 		const db = getDB(platform);
 		const projectId = parseInt(params.projectId);
-		const data = await request.formData();
-		const accessToken = data.get('access_token')?.toString();
-
-		if (!accessToken) {
-			return fail(400, { error: 'アクセストークンを入力してください' });
-		}
 
 		try {
-			// 既存の設定を確認
-			const existing = await db
-				.prepare('SELECT id FROM instagram_settings WHERE project_id = ?')
+			// Meta API設定を取得
+			const settings = await db
+				.prepare('SELECT * FROM meta_api_settings WHERE project_id = ? AND enabled = 1')
 				.bind(projectId)
-				.first<{ id: number }>();
+				.first<{ access_token: string }>();
 
-			if (existing) {
-				// 更新
-				await db
-					.prepare('UPDATE instagram_settings SET access_token = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-					.bind(accessToken, existing.id)
-					.run();
-			} else {
-				// 新規作成
-				await db
-					.prepare('INSERT INTO instagram_settings (user_id, project_id, access_token) VALUES (?, ?, ?)')
-					.bind(locals.userId, projectId, accessToken)
-					.run();
+			if (!settings) {
+				return fail(400, { error: 'Meta API設定を先に登録してください（SNS管理ページ）' });
 			}
 
-			return { success: true };
-		} catch (err) {
-			console.error('Save access token error:', err);
-			return fail(500, { error: 'アクセストークンの保存に失敗しました' });
-		}
-	},
+			// Facebookページを取得してInstagramアカウントを更新
+			const pagesResponse = await fetch(
+				`https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token&access_token=${settings.access_token}`
+			);
+			const pagesData = await pagesResponse.json();
 
-	connectInstagram: async ({ request, locals, platform, params }) => {
-		if (!locals.userId) {
-			return fail(401, { error: '認証が必要です' });
-		}
-
-		const db = getDB(platform);
-		const projectId = parseInt(params.projectId);
-		const data = await request.formData();
-		const instagramBusinessAccountId = data.get('instagram_business_account_id')?.toString();
-
-		if (!instagramBusinessAccountId) {
-			return fail(400, { error: 'Instagramビジネスアカウント IDを入力してください' });
-		}
-
-		try {
-			// 設定を更新
-			const existing = await db
-				.prepare('SELECT id FROM instagram_settings WHERE project_id = ?')
-				.bind(projectId)
-				.first<{ id: number }>();
-
-			if (existing) {
-				await db
-					.prepare('UPDATE instagram_settings SET instagram_business_account_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-					.bind(instagramBusinessAccountId, existing.id)
-					.run();
-			} else {
-				await db
-					.prepare('INSERT INTO instagram_settings (user_id, project_id, instagram_business_account_id) VALUES (?, ?, ?)')
-					.bind(locals.userId, projectId, instagramBusinessAccountId)
-					.run();
+			if (pagesData.error) {
+				return fail(400, { error: `API Error: ${pagesData.error.message}` });
 			}
 
-			return { success: true };
-		} catch (err) {
-			console.error('Connect Instagram error:', err);
-			return fail(500, { error: 'Instagramアカウントの接続に失敗しました' });
-		}
-	},
-
-	connectFacebook: async ({ request, locals, platform, params }) => {
-		if (!locals.userId) {
-			return fail(401, { error: '認証が必要です' });
-		}
-
-		const db = getDB(platform);
-		const projectId = parseInt(params.projectId);
-		const data = await request.formData();
-		const facebookPageId = data.get('facebook_page_id')?.toString();
-
-		if (!facebookPageId) {
-			return fail(400, { error: 'FacebookページIDを入力してください' });
-		}
-
-		try {
-			// 設定を更新
-			const existing = await db
-				.prepare('SELECT id FROM instagram_settings WHERE project_id = ?')
-				.bind(projectId)
-				.first<{ id: number }>();
-
-			if (existing) {
-				await db
-					.prepare('UPDATE instagram_settings SET facebook_page_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-					.bind(facebookPageId, existing.id)
-					.run();
-			} else {
-				await db
-					.prepare('INSERT INTO instagram_settings (user_id, project_id, facebook_page_id) VALUES (?, ?, ?)')
-					.bind(locals.userId, projectId, facebookPageId)
-					.run();
+			if (!pagesData.data || pagesData.data.length === 0) {
+				return fail(400, { error: 'Facebookページが見つかりません。SNS管理ページでMeta APIを設定してください。' });
 			}
 
-			return { success: true };
+			const page = pagesData.data[0];
+
+			// Instagram Business Accountを取得
+			const igResult = await getInstagramAccounts(page.access_token, page.id);
+
+			if (igResult.error) {
+				return fail(400, { error: `Instagram Error: ${igResult.error}` });
+			}
+
+			if (!igResult.account) {
+				return fail(400, { error: 'Instagramビジネスアカウントが見つかりません' });
+			}
+
+			const igAccount = igResult.account;
+
+			// アカウント情報を保存
+			await db
+				.prepare(`
+					INSERT INTO instagram_business_accounts (
+						project_id, instagram_account_id, username,
+						followers_count, follows_count, media_count, profile_picture_url, updated_at
+					)
+					VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+					ON CONFLICT(project_id, instagram_account_id) DO UPDATE SET
+						username = excluded.username,
+						followers_count = excluded.followers_count,
+						follows_count = excluded.follows_count,
+						media_count = excluded.media_count,
+						profile_picture_url = excluded.profile_picture_url,
+						updated_at = CURRENT_TIMESTAMP
+				`)
+				.bind(
+					projectId,
+					igAccount.id,
+					igAccount.username,
+					igAccount.followers_count || 0,
+					igAccount.follows_count || 0,
+					igAccount.media_count || 0,
+					igAccount.profile_picture_url || null
+				)
+				.run();
+
+			// メディアを取得
+			const mediaResult = await getInstagramMedia(igAccount.id, page.access_token, 50);
+
+			if (!mediaResult.error && mediaResult.media.length > 0) {
+				const accountRow = await db
+					.prepare('SELECT id FROM instagram_business_accounts WHERE instagram_account_id = ?')
+					.bind(igAccount.id)
+					.first<{ id: number }>();
+
+				if (accountRow) {
+					for (const media of mediaResult.media) {
+						await db
+							.prepare(`
+								INSERT INTO instagram_media (
+									account_id, media_id, media_type, media_url, permalink,
+									caption, like_count, comments_count, timestamp, created_at
+								)
+								VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+								ON CONFLICT(account_id, media_id) DO UPDATE SET
+									like_count = excluded.like_count,
+									comments_count = excluded.comments_count
+							`)
+							.bind(
+								accountRow.id,
+								media.id,
+								media.media_type || null,
+								media.media_url || null,
+								media.permalink || null,
+								media.caption || null,
+								media.like_count || 0,
+								media.comments_count || 0,
+								media.timestamp || null
+							)
+							.run();
+					}
+				}
+			}
+
+			return {
+				success: true,
+				message: `@${igAccount.username} のデータを更新しました（${mediaResult.media.length}件のメディア）`
+			};
 		} catch (err) {
-			console.error('Connect Facebook error:', err);
-			return fail(500, { error: 'Facebookページの接続に失敗しました' });
+			console.error('Refresh Instagram data error:', err);
+			return fail(500, { error: 'データの更新に失敗しました' });
 		}
 	}
 };

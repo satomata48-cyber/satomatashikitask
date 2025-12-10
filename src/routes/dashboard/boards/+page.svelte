@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
-	import { Pencil, Trash2, Plus, LayoutGrid, Calendar, Settings, ArrowLeft, FolderKanban } from 'lucide-svelte';
+	import { Pencil, Trash2, Plus, LayoutGrid, Calendar, Settings, ArrowLeft, FolderKanban, StickyNote, FileText, LogOut } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
@@ -28,21 +28,51 @@
 	<!-- Header -->
 	<header class="bg-white shadow-sm">
 		<div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-			<div class="flex items-center gap-3">
-				<a href="/dashboard" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="ダッシュボードへ戻る">
+			<div class="flex items-center gap-4">
+				<a href="/dashboard" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="ダッシュボードに戻る">
 					<ArrowLeft size={20} class="text-gray-600" />
 				</a>
-				<LayoutGrid size={28} class="text-blue-600" />
-				<h1 class="text-xl md:text-2xl font-bold text-gray-800">ボード管理</h1>
+				<div class="flex items-center gap-3">
+					<LayoutGrid size={28} class="text-blue-600" />
+					<h1 class="text-xl md:text-2xl font-bold text-gray-800">ボード管理</h1>
+				</div>
 			</div>
-			<div class="flex items-center gap-3">
+			<div class="flex items-center gap-2">
+				<!-- ナビゲーションリンク -->
 				<a
-					href="/dashboard"
-					class="flex items-center gap-2 px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium"
+					href="/dashboard/projects"
+					class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
+					title="プロジェクト"
 				>
 					<FolderKanban size={18} />
-					<span class="hidden md:inline">プロジェクト管理</span>
+					<span class="hidden md:inline">プロジェクト</span>
 				</a>
+				<a
+					href="/dashboard/notes"
+					class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors"
+					title="メモ帳"
+				>
+					<StickyNote size={18} />
+					<span class="hidden md:inline">メモ</span>
+				</a>
+				<a
+					href="/dashboard/documents"
+					class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-colors"
+					title="ドキュメント"
+				>
+					<FileText size={18} />
+					<span class="hidden md:inline">ドキュメント</span>
+				</a>
+				<div class="w-px h-6 bg-gray-200 mx-1"></div>
+				<form method="POST" action="/dashboard?/logout" use:enhance>
+					<button
+						type="submit"
+						class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+					>
+						<LogOut size={18} />
+						<span class="hidden md:inline">ログアウト</span>
+					</button>
+				</form>
 			</div>
 		</div>
 	</header>

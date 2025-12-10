@@ -3,8 +3,8 @@
  *
  * Required permissions:
  * - pages_show_list, pages_read_engagement, pages_read_user_content
- * - instagram_basic, instagram_manage_insights
- * - threads_basic, threads_read_replies
+ * - instagram_basic, instagram_manage_insights, instagram_content_publish
+ * - threads_business_basic (for Threads API - uses graph.threads.net)
  */
 
 const GRAPH_API_BASE = 'https://graph.facebook.com/v19.0';
@@ -102,25 +102,73 @@ export async function getInstagramMedia(igAccountId: string, accessToken: string
 
 /**
  * Threads投稿を取得
+ *
+ * Threads API uses a separate base URL: https://graph.threads.net
+ * Required permission: threads_business_basic
  */
 export async function getThreadsPosts(accessToken: string, userId: string = 'me', limit: number = 25) {
 	try {
-		// Threads API v1.0
-		const response = await fetch(
-			`${GRAPH_API_BASE}/${userId}/threads?fields=id,text,permalink,timestamp,like_count,reply_count,quote_count,repost_count,views&limit=${limit}&access_token=${accessToken}`
+		// Threads API uses graph.threads.net, not graph.facebook.com
+		const THREADS_API_BASE = 'https://graph.threads.net/v1.0';
+
+		// First, get the user's Threads profile
+		const profileResponse = await fetch(
+			`${THREADS_API_BASE}/me?fields=id,username,threads_profile_picture_url,threads_biography&access_token=${accessToken}`
 		);
 
-		const data = await response.json();
+		const profileData = await profileResponse.json();
+
+		if (profileData.error) {
+			console.error('Threads profile API error:', profileData.error);
+			return { threads: [], profile: null, error: profileData.error.message };
+		}
+
+		// Get user's threads (posts)
+		const threadsResponse = await fetch(
+			`${THREADS_API_BASE}/me/threads?fields=id,text,permalink,timestamp,media_type,shortcode&limit=${limit}&access_token=${accessToken}`
+		);
+
+		const data = await threadsResponse.json();
 
 		if (data.error) {
 			console.error('Threads API error:', data.error);
-			return { threads: [], error: data.error.message };
+			return { threads: [], profile: profileData, error: data.error.message };
 		}
 
-		return { threads: data.data || [], error: null };
+		// Get insights for each thread post if available
+		const threadsWithInsights = await Promise.all(
+			(data.data || []).map(async (thread: any) => {
+				try {
+					const insightsResponse = await fetch(
+						`${THREADS_API_BASE}/${thread.id}/insights?metric=views,likes,replies,reposts,quotes&access_token=${accessToken}`
+					);
+					const insightsData = await insightsResponse.json();
+
+					if (insightsData.data) {
+						const insights: any = {};
+						insightsData.data.forEach((metric: any) => {
+							insights[metric.name] = metric.values?.[0]?.value || 0;
+						});
+						return {
+							...thread,
+							like_count: insights.likes || 0,
+							reply_count: insights.replies || 0,
+							quote_count: insights.quotes || 0,
+							repost_count: insights.reposts || 0,
+							views: insights.views || 0
+						};
+					}
+					return thread;
+				} catch {
+					return thread;
+				}
+			})
+		);
+
+		return { threads: threadsWithInsights, profile: profileData, error: null };
 	} catch (err) {
 		console.error('Get Threads posts error:', err);
-		return { threads: [], error: err instanceof Error ? err.message : 'Unknown error' };
+		return { threads: [], profile: null, error: err instanceof Error ? err.message : 'Unknown error' };
 	}
 }
 
